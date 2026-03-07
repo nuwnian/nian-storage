@@ -1,0 +1,32 @@
+{
+  "name": "nian-storage-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Nian Storage application",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "storage",
+    "cloud",
+    "api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1004.0",
+    "@aws-sdk/s3-request-presigner": "^3.1004.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
