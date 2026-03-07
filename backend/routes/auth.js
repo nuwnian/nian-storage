@@ -222,10 +222,11 @@ router.post('/oauth/:provider', async (req, res) => {
     }
 
     console.log('Initiating Supabase OAuth for:', provider);
+    const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'http://localhost:3000';
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider,
       options: {
-        redirectTo: 'http://localhost:3000',
+        redirectTo: origin,
       }
     });
 

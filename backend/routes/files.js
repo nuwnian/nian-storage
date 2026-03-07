@@ -135,8 +135,7 @@ router.get('/:id/content', verifyUser, async (req, res) => {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    const isTxt = file.type === 'txt' || file.name?.toLowerCase().endsWith('.txt');
-    if (!isTxt) {
+    if (file.type !== 'txt') {
       return res.status(400).json({ error: 'Content preview only supported for txt files' });
     }
 
