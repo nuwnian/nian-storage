@@ -1,6 +1,23 @@
-import { supabaseAdmin } from '../../_supabase.js';
-import { verifyUser, setCors } from '../../_helpers.js';
+import { createClient } from '@supabase/supabase-js';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+
+const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+}
+
+async function verifyUser(req) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return { error: 'No token provided', status: 401 };
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return { error: 'Invalid token', status: 401 };
+  return { user };
+}
 
 const r2Client = new S3Client({
   region: 'auto',
