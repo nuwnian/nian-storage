@@ -52,8 +52,8 @@ Open `backend/.env` and fill in:
 ```env
 # Cloudflare R2 Configuration
 R2_ENDPOINT=https://1234567890abcdef.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=your_access_key_here
-R2_SECRET_ACCESS_KEY=your_secret_key_here
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=nian-storage
 R2_PUBLIC_URL=https://pub-xxxxxxxxxxxxx.r2.dev
 ```
