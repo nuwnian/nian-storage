@@ -92,7 +92,7 @@ export default function NianStorage(props) {
   useEffect(() => {
     if (viewerModal.show && viewerModal.file?.type === 'txt') {
       setTxtContent(null);
-      fetch(`${API_URL}/files/${viewerModal.file.id}/content`, {
+      fetch(`${API_URL}/api/files/${viewerModal.file.id}/content`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(r => r.text())
