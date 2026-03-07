@@ -88,9 +88,11 @@ export default function NianStorage(props) {
     }
   }, [token]);
 
+  const isTxtFile = (f) => f?.type === 'txt' || f?.name?.toLowerCase().endsWith('.txt');
+
   // Fetch txt content when a txt file is opened in the viewer
   useEffect(() => {
-    if (viewerModal.show && viewerModal.file?.type === 'txt') {
+    if (viewerModal.show && isTxtFile(viewerModal.file)) {
       setTxtContent(null);
       fetch(`${API_URL}/files/${viewerModal.file.id}/content`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1123,7 +1125,7 @@ export default function NianStorage(props) {
                 style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }}
                 title={viewerModal.file.name}
               />
-            ) : viewerModal.file.type === 'txt' ? (
+            ) : isTxtFile(viewerModal.file) ? (
               <div style={{ width: '100%', height: '72vh', overflowY: 'auto', background: '#1a1a2e', borderRadius: 8, padding: '16px 20px', boxSizing: 'border-box' }}>
                 {txtContent === null ? (
                   <div style={{ color: '#aaa', textAlign: 'center', paddingTop: 80 }}>Loading...</div>
