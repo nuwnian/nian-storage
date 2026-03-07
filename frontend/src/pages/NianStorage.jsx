@@ -75,6 +75,7 @@ export default function NianStorage(props) {
   const [error, setError] = useState("");
   const [deleteModal, setDeleteModal] = useState({ show: false, fileId: null, fileName: '' });
   const [viewerModal, setViewerModal] = useState({ show: false, file: null });
+  const [txtContent, setTxtContent] = useState(null);
   const fileInputRef = useRef(null);
 
   // Fetch files on mount
@@ -86,6 +87,19 @@ export default function NianStorage(props) {
       setLoading(false);
     }
   }, [token]);
+
+  // Fetch txt content when a txt file is opened in the viewer
+  useEffect(() => {
+    if (viewerModal.show && viewerModal.file?.type === 'txt') {
+      setTxtContent(null);
+      fetch(viewerModal.file.url)
+        .then(r => r.text())
+        .then(text => setTxtContent(text))
+        .catch(() => setTxtContent('Error loading file content.'));
+    } else {
+      setTxtContent(null);
+    }
+  }, [viewerModal.show, viewerModal.file]);
 
   // Close viewer on ESC key
   useEffect(() => {
@@ -1107,6 +1121,14 @@ export default function NianStorage(props) {
                 style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }}
                 title={viewerModal.file.name}
               />
+            ) : viewerModal.file.type === 'txt' ? (
+              <div style={{ width: '100%', height: '72vh', overflowY: 'auto', background: '#1a1a2e', borderRadius: 8, padding: '16px 20px', boxSizing: 'border-box' }}>
+                {txtContent === null ? (
+                  <div style={{ color: '#aaa', textAlign: 'center', paddingTop: 80 }}>Loading...</div>
+                ) : (
+                  <pre style={{ margin: 0, color: '#e2e8f0', fontFamily: 'monospace', fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{txtContent}</pre>
+                )}
+              </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#aaa', gap: 12 }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width:48,height:48,opacity:0.4}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>

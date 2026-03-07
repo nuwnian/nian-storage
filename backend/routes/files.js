@@ -163,6 +163,9 @@ router.post('/upload', verifyUser, upload.single('file'), async (req, res) => {
     ) {
       fileType = 'xlsx';
       fileColor = '#059669'; // Green for Excel
+    } else if (mimetype === 'text/plain' || extension === 'txt') {
+      fileType = 'txt';
+      fileColor = '#6B7280'; // Gray for text files
     }
 
     // Check storage limit (use admin to bypass RLS)
