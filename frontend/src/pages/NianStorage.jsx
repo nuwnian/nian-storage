@@ -368,19 +368,7 @@ export default function NianStorage(props) {
   };
 
   const handleDownload = (file) => {
-    // For images and videos, show in viewer modal
-    if (file.type === 'image' || file.type === 'video') {
-      setViewerModal({ show: true, file });
-    } else {
-      // For documents, download with proper filename
-      const link = document.createElement('a');
-      link.href = file.url;
-      link.download = file.name;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+    setViewerModal({ show: true, file });
   };
 
   const closeViewer = () => {
@@ -1107,7 +1095,24 @@ export default function NianStorage(props) {
               >
                 Your browser does not support the video tag.
               </video>
-            ) : null}
+            ) : viewerModal.file.type === 'pdf' ? (
+              <iframe
+                src={viewerModal.file.url}
+                style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }}
+                title={viewerModal.file.name}
+              />
+            ) : viewerModal.file.type === 'docx' || viewerModal.file.type === 'xlsx' ? (
+              <iframe
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewerModal.file.url)}`}
+                style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }}
+                title={viewerModal.file.name}
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#aaa', gap: 12 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width:48,height:48,opacity:0.4}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span style={{fontSize:14}}>Preview not available — use Download</span>
+              </div>
+            )}
 
             <button 
               className="viewer-download"
