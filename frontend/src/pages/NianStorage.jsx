@@ -76,6 +76,7 @@ export default function NianStorage(props) {
   const [deleteModal, setDeleteModal] = useState({ show: false, fileId: null, fileName: '' });
   const [viewerModal, setViewerModal] = useState({ show: false, file: null });
   const [txtContent, setTxtContent] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   // Fetch files on mount
@@ -596,18 +597,61 @@ export default function NianStorage(props) {
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+        /* Layout classes */
+        .app-wrapper { display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 499; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+        .hamburger { display: none; background: transparent; border: none; cursor: pointer; padding: 6px; color: #1C2416; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; }
+        .sidebar-close { display: none; background: transparent; border: none; cursor: pointer; color: #6B7D5A; padding: 4px; border-radius: 6px; align-items: center; justify-content: center; }
+        .main-content { flex: 1; overflow: auto; padding: 28px 32px; display: flex; flex-direction: column; }
+        .main-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+        .filter-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .filter-bar { display: flex; gap: 8px; }
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+
+        @media (max-width: 768px) {
+          .sidebar { position: fixed; top: 0; left: 0; bottom: 0; height: 100dvh; transform: translateX(-100%); transition: transform 0.3s ease; z-index: 500; width: 260px; overflow-y: auto; }
+          .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.2); }
+          .sidebar-overlay { display: block; }
+          .hamburger { display: flex; }
+          .sidebar-close { display: flex; }
+          .main-content { padding: 14px 12px !important; }
+          .main-header { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 16px !important; }
+          .search-wrap { width: 100%; }
+          .search-input { width: 100% !important; box-sizing: border-box; }
+          .filter-row { margin-bottom: 14px !important; }
+          .filter-bar { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px; }
+          .filter-bar::-webkit-scrollbar { display: none; }
+          .file-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+          .upload-zone { padding: 20px 14px !important; }
+          .viewer-content { max-width: 100vw !important; width: 100%; padding: 0 4px; }
+          .viewer-modal { padding: 8px !important; align-items: flex-end; }
+          .file-card { padding: 12px !important; }
+          .file-thumbnail { height: 90px !important; margin-bottom: 8px !important; }
+          .modal-content { padding: 20px !important; }
+        }
       `}</style>
 
-      <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+      <div className="app-wrapper">
 
+        <div className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`} onClick={() => setSidebarOpen(false)} />
         {/* Sidebar */}
-        <aside style={{ width: 220, background: "#D4DEC8", borderRight: "1px solid #B8C9A3", padding: "24px 14px", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+        <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} style={{ background: "#D4DEC8", borderRight: "1px solid #B8C9A3", padding: "24px 14px" }}>
           {/* Logo */}
-          <div style={{ padding: "4px 14px 20px" }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: "-0.5px", color: "#1C2416" }}>
-              nian<span style={{ color: "#E07A2F" }}>.</span>
+          <div style={{ padding: "4px 14px 20px", display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: "-0.5px", color: "#1C2416" }}>
+                nian<span style={{ color: "#E07A2F" }}>.</span>
+              </div>
+              <div style={{ fontSize: 11, color: "#6B7D5A", marginTop: 2 }}>personal storage</div>
             </div>
-            <div style={{ fontSize: 11, color: "#6B7D5A", marginTop: 2 }}>personal storage</div>
+            <button className="sidebar-close" onClick={() => setSidebarOpen(false)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:18,height:18}}>
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
           </div>
 
           <button className="sidebar-btn active">
@@ -749,17 +793,24 @@ export default function NianStorage(props) {
         </aside>
 
         {/* Main */}
-        <main style={{ flex: 1, overflow: "auto", padding: "28px 32px", display: "flex", flexDirection: "column" }}>
+        <main className="main-content">
 
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-            <div>
-              <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-0.5px", color: "#1C2416" }}>My Storage</h1>
-              <p style={{ fontSize: 13, color: "#6B7D5A", marginTop: 3 }}>
-                {loading ? 'Loading...' : `${files.length} files · ${usedGB} GB used`}
-              </p>
+          <div className="main-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button className="hamburger" onClick={() => setSidebarOpen(true)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:22,height:22}}>
+                  <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+              </button>
+              <div>
+                <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-0.5px", color: "#1C2416" }}>My Storage</h1>
+                <p style={{ fontSize: 13, color: "#6B7D5A", marginTop: 3 }}>
+                  {loading ? 'Loading...' : `${files.length} files · ${usedGB} GB used`}
+                </p>
+              </div>
             </div>
-            <div style={{ position: "relative" }}>
+            <div className="search-wrap" style={{ position: "relative" }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="#6B7D5A" strokeWidth="2" style={{ width: 16, height: 16, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>
                 <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
               </svg>
@@ -767,6 +818,7 @@ export default function NianStorage(props) {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search files..."
+                className="search-input"
                 style={{
                   background: "#DDE8D2", border: "1.5px solid #C4D4B0",
                   borderRadius: 10, padding: "9px 14px 9px 36px",
@@ -854,8 +906,8 @@ export default function NianStorage(props) {
           )}
 
           {/* Filters + View Toggle */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <div style={{ display: "flex", gap: 8 }}>
+          <div className="filter-row">
+            <div className="filter-bar">
               {["all", "image", "video", "doc"].map(f => (
                 <button key={f} className={`filter-btn ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>
                   {f === "all" ? "All" : f === "image" ? "Photos" : f === "video" ? "Videos" : "Docs"}
@@ -887,7 +939,7 @@ export default function NianStorage(props) {
               <div style={{ fontWeight: 600, color: "#2E3D22" }}>Loading files...</div>
             </div>
           ) : view === "grid" ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
+            <div className="file-grid">
               {filtered.map((f, i) => (
                 <div key={f.id} className="file-card fade-in" style={{ animationDelay: `${i * 0.05}s`, position: 'relative' }}>
                   <div 
