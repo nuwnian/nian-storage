@@ -63,24 +63,8 @@ router.get('/', verifyUser, async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    // Generate presigned URLs for all files
-    const filesWithUrls = await Promise.all(files.map(async (file) => {
-      if (file.url) {
-        try {
-          // Extract R2 key from stored public URL: strip R2_PUBLIC_URL prefix
-          const publicBase = process.env.R2_PUBLIC_URL.replace(/\/$/, '');
-          const key = file.url.startsWith(publicBase)
-            ? file.url.slice(publicBase.length + 1)  // +1 for the slash
-            : `users/${req.userId}/${file.url.split('/').pop()}`;
-          const presignedUrl = await getPresignedUrl(key, 3600); // 1 hour expiry
-          return { ...file, url: presignedUrl };
-        } catch (err) {
-          console.error('Failed to generate presigned URL:', err);
-          return file;
-        }
-      }
-      return file;
-    }));
+    // Use stored public R2 URLs directly (bucket has public access via R2_PUBLIC_URL)
+    const filesWithUrls = files;
 
     // Get user's storage info (use admin to bypass RLS)
     const { data: userData } = await supabaseAdmin
