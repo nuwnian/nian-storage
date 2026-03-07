@@ -2,6 +2,8 @@ import express from 'express';
 import multer from 'multer';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { uploadToR2, deleteFromR2, getPresignedUrl } from '../services/storage.js';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { r2Client, R2_BUCKET_NAME } from '../config/r2.js';
 
 const router = express.Router();
 
@@ -119,7 +121,38 @@ router.get('/:id', verifyUser, async (req, res) => {
   }
 });
 
-// Upload file to R2 and save metadata
+// Stream text file content from R2 (for in-app txt preview)
+router.get('/:id/content', verifyUser, async (req, res) => {
+  try {
+    const { data: file, error } = await supabaseAdmin
+      .from('files')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.userId)
+      .single();
+
+    if (error || !file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    if (file.type !== 'txt') {
+      return res.status(400).json({ error: 'Content preview only supported for txt files' });
+    }
+
+    const urlParts = file.url.split('/');
+    const fileName = urlParts[urlParts.length - 1];
+    const key = `users/${req.userId}/${fileName}`;
+
+    const command = new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key });
+    const r2Response = await r2Client.send(command);
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    r2Response.Body.pipe(res);
+  } catch (error) {
+    console.error('Content fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 router.post('/upload', verifyUser, upload.single('file'), async (req, res) => {
   try {
     console.log('Upload request received from user:', req.userId);
