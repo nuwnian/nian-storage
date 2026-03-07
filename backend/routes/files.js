@@ -132,11 +132,12 @@ router.get('/:id/serve', async (req, res) => {
     const command = new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key });
     const r2Response = await r2Client.send(command);
 
+    const bodyBytes = await r2Response.Body.transformToByteArray();
     res.setHeader('Content-Type', r2Response.ContentType || 'application/octet-stream');
-    if (r2Response.ContentLength) res.setHeader('Content-Length', r2Response.ContentLength);
+    res.setHeader('Content-Length', bodyBytes.length);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
     res.setHeader('Cache-Control', 'private, max-age=3600');
-    r2Response.Body.pipe(res);
+    res.end(Buffer.from(bodyBytes));
   } catch (error) {
     console.error('Serve file error:', error);
     res.status(500).json({ error: error.message });
@@ -169,8 +170,9 @@ router.get('/:id/content', verifyUser, async (req, res) => {
     const command = new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key });
     const r2Response = await r2Client.send(command);
 
+    const text = await r2Response.Body.transformToString('utf-8');
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    r2Response.Body.pipe(res);
+    res.end(text);
   } catch (error) {
     console.error('Content fetch error:', error);
     res.status(500).json({ error: error.message });
