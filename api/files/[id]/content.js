@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
-const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+let supabaseAdmin;
+try {
+  supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+} catch (e) { console.error('Supabase init failed:', e); }
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
@@ -19,25 +22,28 @@ async function verifyUser(req) {
   return { user };
 }
 
-const r2Client = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
-  requestChecksumCalculation: 'WHEN_REQUIRED',
-  responseChecksumValidation: 'WHEN_REQUIRED',
-});
+let r2Client;
+try {
+  r2Client = new S3Client({
+    region: 'auto',
+    endpoint: process.env.R2_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    },
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
+  });
+} catch (e) { console.error('S3 init failed:', e); }
 
 export default async function handler(req, res) {
-  setCors(res);
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  const { user, error: authError, status } = await verifyUser(req);
-  if (authError) return res.status(status).json({ error: authError });
-
   try {
+    setCors(res);
+    if (req.method === 'OPTIONS') return res.status(200).end();
+
+    const { user, error: authError, status } = await verifyUser(req);
+    if (authError) return res.status(status).json({ error: authError });
+
     const { id } = req.query;
     const { data: file, error } = await supabaseAdmin
       .from('files').select('*').eq('id', id).eq('user_id', user.id).single();

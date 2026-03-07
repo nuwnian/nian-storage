@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
-const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+let supabaseAdmin;
+try {
+  supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+} catch (e) { console.error('Supabase init failed:', e); }
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
@@ -20,16 +23,19 @@ async function verifyUser(req) {
 }
 import { randomUUID } from 'crypto';
 
-const r2Client = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
-  requestChecksumCalculation: 'WHEN_REQUIRED',
-  responseChecksumValidation: 'WHEN_REQUIRED',
-});
+let r2Client;
+try {
+  r2Client = new S3Client({
+    region: 'auto',
+    endpoint: process.env.R2_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    },
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
+  });
+} catch (e) { console.error('S3 init failed:', e); }
 
 export const config = { api: { bodyParser: false } };
 
@@ -94,6 +100,7 @@ function formatSize(bytes) {
 }
 
 export default async function handler(req, res) {
+  try {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -187,4 +194,8 @@ export default async function handler(req, res) {
   }
 
   res.status(405).json({ error: 'Method not allowed' });
+  } catch (error) {
+    console.error('Files handler error:', error);
+    if (!res.headersSent) res.status(500).json({ error: error.message });
+  }
 }
