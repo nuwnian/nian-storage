@@ -55,20 +55,25 @@ export default function NianLogin(props) {
   }, []);
 
   const handleOAuth = async (provider) => {
+    setError('');
     try {
       const response = await fetch(`${API_URL}/api/auth/oauth/${provider}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
-      const data = await response.json();
 
+      let data;
+      const text = await response.text();
+      try { data = JSON.parse(text); } catch { throw new Error(`Server error: ${text.slice(0, 120)}`); }
+
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        throw new Error('No OAuth URL returned from server');
       }
     } catch (err) {
-      setError('OAuth failed. Please try again.');
+      setError('OAuth failed: ' + err.message);
     }
   };
 
