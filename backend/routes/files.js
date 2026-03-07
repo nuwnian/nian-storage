@@ -67,10 +67,11 @@ router.get('/', verifyUser, async (req, res) => {
     const filesWithUrls = await Promise.all(files.map(async (file) => {
       if (file.url) {
         try {
-          // Extract R2 key from URL
-          const urlParts = file.url.split('/');
-          const fileName = urlParts[urlParts.length - 1];
-          const key = `users/${req.userId}/${fileName}`;
+          // Extract R2 key from stored public URL: strip R2_PUBLIC_URL prefix
+          const publicBase = process.env.R2_PUBLIC_URL.replace(/\/$/, '');
+          const key = file.url.startsWith(publicBase)
+            ? file.url.slice(publicBase.length + 1)  // +1 for the slash
+            : `users/${req.userId}/${file.url.split('/').pop()}`;
           const presignedUrl = await getPresignedUrl(key, 3600); // 1 hour expiry
           return { ...file, url: presignedUrl };
         } catch (err) {
@@ -139,9 +140,10 @@ router.get('/:id/content', verifyUser, async (req, res) => {
       return res.status(400).json({ error: 'Content preview only supported for txt files' });
     }
 
-    const urlParts = file.url.split('/');
-    const fileName = urlParts[urlParts.length - 1];
-    const key = `users/${req.userId}/${fileName}`;
+    const publicBase = process.env.R2_PUBLIC_URL.replace(/\/$/, '');
+    const key = file.url.startsWith(publicBase)
+      ? file.url.slice(publicBase.length + 1)
+      : `users/${req.userId}/${file.url.split('/').pop()}`;
 
     const command = new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key });
     const r2Response = await r2Client.send(command);

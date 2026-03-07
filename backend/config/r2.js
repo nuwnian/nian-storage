@@ -43,6 +43,8 @@ export const r2Client = new S3Client({
   },
   forcePathStyle: true, // Required for R2
   requestTimeout: 600000, // 10 minutes for large video uploads
+  requestChecksumCalculation: 'WHEN_REQUIRED', // Disable auto checksum — R2 doesn't support x-amz-checksum-mode
+  responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
 export const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
