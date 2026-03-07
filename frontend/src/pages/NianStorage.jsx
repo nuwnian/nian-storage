@@ -298,7 +298,7 @@ export default function NianStorage(props) {
       });
 
       // Open and send request
-      xhr.open('POST', `${API_URL}/api/files/upload`);
+      xhr.open('POST', `${API_URL}/api/files`);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(formData);
     });
