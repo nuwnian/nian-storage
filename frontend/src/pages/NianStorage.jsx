@@ -780,6 +780,7 @@ export default function NianStorage(props) {
             ref={fileInputRef}
             type="file"
             multiple
+            accept="*/*"
             style={{ display: 'none' }}
             onChange={(e) => handleFileUpload(e.target.files)}
           />
