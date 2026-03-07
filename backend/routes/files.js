@@ -63,26 +63,6 @@ router.get('/', verifyUser, async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    // Generate presigned URLs (1 hour expiry) from the private R2 endpoint
-    const filesWithUrls = await Promise.all(files.map(async (file) => {
-      if (file.url) {
-        try {
-          const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
-          const key = publicBase && file.url.startsWith(publicBase)
-            ? file.url.slice(publicBase.length + 1)
-            : file.url.includes('/users/')
-              ? file.url.substring(file.url.indexOf('/users/') + 1)
-              : `users/${req.userId}/${file.url.split('/').pop()}`;
-          const presignedUrl = await getPresignedUrl(key, 3600);
-          return { ...file, url: presignedUrl };
-        } catch (err) {
-          console.error('Failed to generate presigned URL:', err);
-          return file;
-        }
-      }
-      return file;
-    }));
-
     // Get user's storage info (use admin to bypass RLS)
     const { data: userData } = await supabaseAdmin
       .from('users')
@@ -91,8 +71,8 @@ router.get('/', verifyUser, async (req, res) => {
       .single();
 
     res.json({
-      files: filesWithUrls || [],
-      total: filesWithUrls?.length || 0,
+      files: files || [],
+      total: files?.length || 0,
       storageUsed: userData?.storage_used || 0,
       storageTotal: userData?.storage_total || 10737418240, // 10 GB
     });
@@ -119,6 +99,46 @@ router.get('/:id', verifyUser, async (req, res) => {
     res.json(file);
   } catch (error) {
     console.error('Get file error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Proxy-stream any file from R2 (auth via Bearer header or ?token= query param)
+// This avoids requiring the browser to reach R2 directly
+router.get('/:id/serve', async (req, res) => {
+  try {
+    const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    const { data: file, error: fileError } = await supabaseAdmin
+      .from('files')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (fileError || !file) return res.status(404).json({ error: 'File not found' });
+
+    const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
+    const key = publicBase && file.url.startsWith(publicBase)
+      ? file.url.slice(publicBase.length + 1)
+      : file.url.includes('/users/')
+        ? file.url.substring(file.url.indexOf('/users/') + 1)
+        : `users/${user.id}/${file.url.split('/').pop()}`;
+
+    const command = new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key });
+    const r2Response = await r2Client.send(command);
+
+    res.setHeader('Content-Type', r2Response.ContentType || 'application/octet-stream');
+    if (r2Response.ContentLength) res.setHeader('Content-Length', r2Response.ContentLength);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    r2Response.Body.pipe(res);
+  } catch (error) {
+    console.error('Serve file error:', error);
     res.status(500).json({ error: error.message });
   }
 });

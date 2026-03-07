@@ -156,7 +156,11 @@ export default function NianStorage(props) {
       });
       const data = await response.json();
       if (response.ok) {
-        setFiles(data.files || []);
+        const withUrls = (data.files || []).map(f => ({
+          ...f,
+          url: `${API_URL}/api/files/${f.id}/serve?token=${token}`
+        }));
+        setFiles(withUrls);
       } else {
         setError(data.error || 'Failed to load files');
         console.error('Failed to fetch files:', response.status, data);
@@ -331,7 +335,7 @@ export default function NianStorage(props) {
         const data = await uploadFileWithProgress(file, formData, token);
         
         // Add new file to list
-        setFiles(prev => [data.file, ...prev]);
+        setFiles(prev => [{ ...data.file, url: `${API_URL}/api/files/${data.file.id}/serve?token=${token}` }, ...prev]);
         // Refresh user data to update storage
         fetchUserData();
       } catch (err) {
