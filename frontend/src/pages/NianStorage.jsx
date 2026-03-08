@@ -19,6 +19,16 @@ function useFileUrl(fileId, token, enabled = true) {
   return blobUrl;
 }
 
+// Derive doc subtype from filename extension (DB type column only has image/video/doc)
+function getDocSubtype(name = '') {
+  const ext = name.toLowerCase().split('.').pop();
+  if (ext === 'pdf') return 'pdf';
+  if (['docx', 'doc'].includes(ext)) return 'docx';
+  if (['xlsx', 'xls'].includes(ext)) return 'xlsx';
+  if (ext === 'txt') return 'txt';
+  return 'doc';
+}
+
 const icons = {
   image: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-6 h-6">
@@ -111,7 +121,9 @@ export default function NianStorage(props) {
   // Fetch viewer blob URL when modal opens
   useEffect(() => {
     let objectUrl;
-    if (viewerModal.show && viewerModal.file && viewerModal.file.type !== 'txt') {
+    const subtype = viewerModal.file ? getDocSubtype(viewerModal.file.name) : null;
+    const isTxt = viewerModal.file?.type === 'txt' || subtype === 'txt';
+    if (viewerModal.show && viewerModal.file && !isTxt) {
       fetch(`${API_URL}/api/files/${viewerModal.file.id}/serve`, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -126,7 +138,9 @@ export default function NianStorage(props) {
 
   // Fetch txt content when a txt file is opened in the viewer
   useEffect(() => {
-    if (viewerModal.show && viewerModal.file?.type === 'txt') {
+    const subtype = viewerModal.file ? getDocSubtype(viewerModal.file.name) : null;
+    const isTxt = viewerModal.file?.type === 'txt' || subtype === 'txt';
+    if (viewerModal.show && isTxt) {
       setTxtContent(null);
       fetch(`${API_URL}/api/files/${viewerModal.file.id}/content`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1177,17 +1191,17 @@ export default function NianStorage(props) {
               viewerBlobUrl
                 ? <video src={viewerBlobUrl} controls autoPlay className="viewer-media" style={{ width: '100%' }}>Your browser does not support the video tag.</video>
                 : <div className="viewer-media" style={{ display:'flex', alignItems:'center', justifyContent:'center', color:'#aaa' }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:40,height:40,animation:'spin 1s linear infinite'}}><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/></svg></div>
-            ) : viewerModal.file.type === 'pdf' ? (
+            ) : getDocSubtype(viewerModal.file.name) === 'pdf' ? (
               viewerBlobUrl
                 ? <iframe src={viewerBlobUrl} style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }} title={viewerModal.file.name} />
                 : <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200, color:'#aaa' }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:40,height:40,animation:'spin 1s linear infinite'}}><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/></svg></div>
-            ) : viewerModal.file.type === 'docx' || viewerModal.file.type === 'xlsx' ? (
+            ) : ['docx','xlsx'].includes(getDocSubtype(viewerModal.file.name)) ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#aaa', gap: 16, padding: '32px' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width:48,height:48,opacity:0.5}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 <span style={{fontSize:14, textAlign:'center'}}>Inline preview not available for this file type</span>
                 <button onClick={() => downloadFile(viewerModal.file)} style={{ padding: '10px 20px', background: '#4a7c59', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Download to view</button>
               </div>
-            ) : viewerModal.file.type === 'txt' ? (
+            ) : getDocSubtype(viewerModal.file.name) === 'txt' || viewerModal.file.type === 'txt' ? (
               <div style={{ width: '100%', height: '72vh', overflowY: 'auto', background: '#1a1a2e', borderRadius: 8, padding: '16px 20px', boxSizing: 'border-box' }}>
                 {txtContent === null ? (
                   <div style={{ color: '#aaa', textAlign: 'center', paddingTop: 80 }}>Loading...</div>

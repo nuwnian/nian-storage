@@ -32,12 +32,10 @@ try {
       accessKeyId: process.env.R2_ACCESS_KEY_ID,
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
     },
+    forcePathStyle: true,
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   });
-} catch (e) { console.error('S3 init failed:', e); }
-
-export const config = { api: { bodyParser: false } };
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
@@ -105,10 +103,11 @@ function getFileType(mimetype, filename) {
   const ext = filename.toLowerCase().split('.').pop();
   if (mimetype.startsWith('image/')) return { type: 'image', color: '#7BA05B' };
   if (mimetype.startsWith('video/')) return { type: 'video', color: '#D97706' };
-  if (mimetype === 'application/pdf' || ext === 'pdf') return { type: 'pdf', color: '#DC2626' };
-  if (['docx', 'doc'].includes(ext) || mimetype.includes('wordprocessingml') || mimetype.includes('msword')) return { type: 'docx', color: '#2563EB' };
-  if (['xlsx', 'xls'].includes(ext) || mimetype.includes('spreadsheetml') || mimetype.includes('ms-excel')) return { type: 'xlsx', color: '#059669' };
-  if (mimetype === 'text/plain' || ext === 'txt') return { type: 'txt', color: '#6B7280' };
+  // DB CHECK constraint only allows 'image', 'video', 'doc' — map everything else to 'doc'
+  if (mimetype === 'application/pdf' || ext === 'pdf') return { type: 'doc', color: '#DC2626' };
+  if (['docx', 'doc'].includes(ext) || mimetype.includes('wordprocessingml') || mimetype.includes('msword')) return { type: 'doc', color: '#2563EB' };
+  if (['xlsx', 'xls'].includes(ext) || mimetype.includes('spreadsheetml') || mimetype.includes('ms-excel')) return { type: 'doc', color: '#059669' };
+  if (mimetype === 'text/plain' || ext === 'txt') return { type: 'doc', color: '#6B7280' };
   return { type: 'doc', color: '#5B8C7A' };
 }
 
