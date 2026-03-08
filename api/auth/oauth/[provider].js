@@ -1,5 +1,5 @@
 function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
+  res.setHeader('Access-Control-Allow-Origin', (process.env.CORS_ORIGIN || '*').replace(/[^\x20-\x7E]/g, '').trim() || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     const redirectTo = req.headers.origin || 'https://nian-storage.vercel.app';
-    const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+    const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/[\r\n]/g, '').trim().replace(/\/$/, '');
     const url = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
 
     res.json({ url });
