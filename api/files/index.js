@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { randomUUID } from 'crypto';
 
 let supabaseAdmin;
 try {
@@ -21,7 +22,6 @@ async function verifyUser(req) {
   if (error || !user) return { error: 'Invalid token', status: 401 };
   return { user };
 }
-import { randomUUID } from 'crypto';
 
 let r2Client;
 try {
