@@ -36,6 +36,7 @@ try {
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   });
+} catch (e) { console.error('R2 init failed:', e); }
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
