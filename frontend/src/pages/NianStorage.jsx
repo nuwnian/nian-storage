@@ -222,10 +222,9 @@ export default function NianStorage(props) {
   };
 
   // Compress image before upload
-  const loadBlobUrls = async (fileList) => {
-    const imageFiles = fileList.filter(f => f.type === 'image');
-    for (const f of imageFiles) {
-      if (blobUrlsRef.current[f.id]) continue;
+  const loadBlobUrls = (fileList) => {
+    const imageFiles = fileList.filter(f => f.type === 'image' && !blobUrlsRef.current[f.id]);
+    Promise.all(imageFiles.map(async (f) => {
       try {
         const resp = await fetch(`${API_URL}/api/files/${f.id}/serve`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -237,7 +236,7 @@ export default function NianStorage(props) {
           setBlobUrls(prev => ({ ...prev, [f.id]: url }));
         }
       } catch { /* skip failed thumbnails */ }
-    }
+    }));
   };
 
   // Revoke all blob URLs on unmount
