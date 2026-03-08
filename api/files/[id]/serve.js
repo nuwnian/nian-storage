@@ -36,6 +36,15 @@ export default async function handler(req, res) {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'No token provided' });
 
+    if (!supabase || !supabaseAdmin) {
+      console.error('Supabase clients not initialized');
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    if (!r2Client) {
+      console.error('R2 client not initialized — check R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY env vars');
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
 
@@ -52,7 +61,9 @@ export default async function handler(req, res) {
         : `users/${user.id}/${file.url.split('/').pop()}`;
 
     const command = new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key });
+    console.log('Fetching from R2, key:', key);
     const r2Response = await r2Client.send(command);
+    console.log('R2 response OK, ContentType:', r2Response.ContentType);
 
     const bodyBytes = await r2Response.Body.transformToByteArray();
     res.setHeader('Content-Type', r2Response.ContentType || 'application/octet-stream');
@@ -62,7 +73,7 @@ export default async function handler(req, res) {
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     res.end(Buffer.from(bodyBytes));
   } catch (error) {
-    console.error('Serve file error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Serve file error:', error.name, '-', error.message, '| Code:', error.Code || error.$metadata?.httpStatusCode);
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
   }
 }

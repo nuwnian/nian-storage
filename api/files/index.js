@@ -62,7 +62,6 @@ async function parseMultipart(req) {
     req.on('data', chunk => {
       totalSize += chunk.length;
       if (totalSize > MAX_FILE_SIZE) {
-        req.destroy();
         return reject(new Error('File too large (max 50 MB)'));
       }
       chunks.push(chunk);
@@ -164,14 +163,25 @@ export default async function handler(req, res) {
       const filePart = parts.find(p => p.filename);
       if (!filePart) return res.status(400).json({ error: 'No file uploaded' });
 
-      const { filename, contentType, data: buffer } = filePart;
+      const { filename, contentType: rawContentType, data: buffer } = filePart;
+      const contentType = (rawContentType || '').split(';')[0].trim().toLowerCase();
       const size = buffer.length;
 
       if (size > MAX_FILE_SIZE) {
         return res.status(413).json({ error: 'File too large (max 50 MB)' });
       }
       if (!ALLOWED_MIME_TYPES.has(contentType)) {
+        console.error('Blocked MIME type:', rawContentType, '→', contentType);
         return res.status(415).json({ error: 'File type not allowed' });
+      }
+
+      if (!supabaseAdmin) {
+        console.error('supabaseAdmin not initialized');
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+      if (!r2Client) {
+        console.error('r2Client not initialized');
+        return res.status(500).json({ error: 'Storage service unavailable' });
       }
 
       const { data: userData } = await supabaseAdmin
@@ -182,15 +192,17 @@ export default async function handler(req, res) {
       }
 
       const { type: fileType, color: fileColor } = getFileType(contentType || '', filename);
-      const ext = filename.split('.').pop();
+      const ext = (filename.split('.').pop() || 'bin').replace(/[^a-zA-Z0-9]/g, '');
       const key = `users/${user.id}/${randomUUID()}.${ext}`;
 
+      console.log('Uploading to R2:', key, 'type:', contentType, 'size:', size);
       await r2Client.send(new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
         Key: key,
         Body: buffer,
         ContentType: contentType,
       }));
+      console.log('R2 upload OK');
 
       const url = `${(process.env.R2_PUBLIC_URL || '').replace(/\/$/, '')}/${key}`;
 
@@ -207,12 +219,14 @@ export default async function handler(req, res) {
         }])
         .select().single();
 
-      if (fileError) return res.status(400).json({ error: fileError.message });
+      if (fileError) return res.status(400).json({ error: 'Upload recorded failed' });
 
-      await supabaseAdmin
-        .from('users')
-        .update({ storage_used: (userData.storage_used || 0) + size })
-        .eq('id', user.id);
+      if (userData) {
+        await supabaseAdmin
+          .from('users')
+          .update({ storage_used: (userData.storage_used || 0) + size })
+          .eq('id', user.id);
+      }
 
       return res.status(201).json({ message: 'File uploaded successfully', file: newFile });
     } catch (error) {
