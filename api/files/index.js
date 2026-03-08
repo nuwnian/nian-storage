@@ -7,7 +7,7 @@ try {
 } catch (e) { console.error('Supabase init failed:', e); }
 
 function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
+  res.setHeader('Access-Control-Allow-Origin', (process.env.CORS_ORIGIN || 'https://nian-storage.vercel.app').replace(/[\r\n]/g, '').trim());
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -39,13 +39,34 @@ try {
 
 export const config = { api: { bodyParser: false } };
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg','image/png','image/gif','image/webp','image/svg+xml',
+  'video/mp4','video/webm','video/ogg',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+]);
+
 async function parseMultipart(req) {
   const boundary = req.headers['content-type']?.split('boundary=')[1];
   if (!boundary) throw new Error('No boundary found');
 
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', chunk => chunks.push(chunk));
+    let totalSize = 0;
+    req.on('data', chunk => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_FILE_SIZE) {
+        req.destroy();
+        return reject(new Error('File too large (max 50 MB)'));
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => {
       const body = Buffer.concat(chunks);
       const boundaryBuffer = Buffer.from(`--${boundary}`);
@@ -132,7 +153,7 @@ export default async function handler(req, res) {
         storageTotal: userData?.storage_total || 10737418240,
       });
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
@@ -145,6 +166,13 @@ export default async function handler(req, res) {
 
       const { filename, contentType, data: buffer } = filePart;
       const size = buffer.length;
+
+      if (size > MAX_FILE_SIZE) {
+        return res.status(413).json({ error: 'File too large (max 50 MB)' });
+      }
+      if (!ALLOWED_MIME_TYPES.has(contentType)) {
+        return res.status(415).json({ error: 'File type not allowed' });
+      }
 
       const { data: userData } = await supabaseAdmin
         .from('users').select('storage_used, storage_total').eq('id', user.id).single();
@@ -189,13 +217,13 @@ export default async function handler(req, res) {
       return res.status(201).json({ message: 'File uploaded successfully', file: newFile });
     } catch (error) {
       console.error('Upload error:', error);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
   res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Files handler error:', error);
-    if (!res.headersSent) res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
   }
 }

@@ -8,7 +8,7 @@ try {
 } catch (e) { console.error('Supabase init failed:', e); }
 
 function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
+  res.setHeader('Access-Control-Allow-Origin', (process.env.CORS_ORIGIN || 'https://nian-storage.vercel.app').replace(/[\r\n]/g, '').trim());
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     setCors(res);
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
+    const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'No token provided' });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
@@ -58,7 +58,8 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', r2Response.ContentType || 'application/octet-stream');
     res.setHeader('Content-Length', bodyBytes.length);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     res.end(Buffer.from(bodyBytes));
   } catch (error) {
     console.error('Serve file error:', error);

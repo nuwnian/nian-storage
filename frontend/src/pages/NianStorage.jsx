@@ -1,6 +1,23 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
+
+// Fetch a file via auth header and return a revokable blob URL
+function useFileUrl(fileId, token, enabled = true) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  useEffect(() => {
+    if (!enabled || !fileId || !token) return;
+    let objectUrl;
+    fetch(`${API_URL}/api/files/${fileId}/serve`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.blob())
+      .then(blob => { objectUrl = URL.createObjectURL(blob); setBlobUrl(objectUrl); })
+      .catch(() => setBlobUrl(null));
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [fileId, token, enabled]);
+  return blobUrl;
+}
 
 const icons = {
   image: (
@@ -75,6 +92,9 @@ export default function NianStorage(props) {
   const [error, setError] = useState("");
   const [deleteModal, setDeleteModal] = useState({ show: false, fileId: null, fileName: '' });
   const [viewerModal, setViewerModal] = useState({ show: false, file: null });
+  const [viewerBlobUrl, setViewerBlobUrl] = useState(null);
+  const [blobUrls, setBlobUrls] = useState({});
+  const blobUrlsRef = useRef({});
   const [txtContent, setTxtContent] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -87,6 +107,22 @@ export default function NianStorage(props) {
       setLoading(false);
     }
   }, [token]);
+
+  // Fetch viewer blob URL when modal opens
+  useEffect(() => {
+    let objectUrl;
+    if (viewerModal.show && viewerModal.file && viewerModal.file.type !== 'txt') {
+      fetch(`${API_URL}/api/files/${viewerModal.file.id}/serve`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(r => r.blob())
+        .then(blob => { objectUrl = URL.createObjectURL(blob); setViewerBlobUrl(objectUrl); })
+        .catch(() => setViewerBlobUrl(null));
+    } else {
+      setViewerBlobUrl(null);
+    }
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [viewerModal.show, viewerModal.file]);
 
   // Fetch txt content when a txt file is opened in the viewer
   useEffect(() => {
@@ -156,11 +192,9 @@ export default function NianStorage(props) {
       });
       const data = await response.json();
       if (response.ok) {
-        const withUrls = (data.files || []).map(f => ({
-          ...f,
-          url: `${API_URL}/api/files/${f.id}/serve?token=${token}`
-        }));
+        const withUrls = (data.files || []).map(f => ({ ...f }));
         setFiles(withUrls);
+        loadBlobUrls(withUrls);
       } else {
         setError(data.error || 'Failed to load files');
         console.error('Failed to fetch files:', response.status, data);
@@ -172,6 +206,30 @@ export default function NianStorage(props) {
       setLoading(false);
     }
   };
+
+  // Compress image before upload
+  const loadBlobUrls = async (fileList) => {
+    const imageFiles = fileList.filter(f => f.type === 'image');
+    for (const f of imageFiles) {
+      if (blobUrlsRef.current[f.id]) continue;
+      try {
+        const resp = await fetch(`${API_URL}/api/files/${f.id}/serve`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          blobUrlsRef.current[f.id] = url;
+          setBlobUrls(prev => ({ ...prev, [f.id]: url }));
+        }
+      } catch { /* skip failed thumbnails */ }
+    }
+  };
+
+  // Revoke all blob URLs on unmount
+  useEffect(() => () => {
+    Object.values(blobUrlsRef.current).forEach(URL.revokeObjectURL);
+  }, []);
 
   // Compress image before upload
   const compressImage = async (file, maxWidth = 1920, quality = 0.8) => {
@@ -335,7 +393,9 @@ export default function NianStorage(props) {
         const data = await uploadFileWithProgress(file, formData, token);
         
         // Add new file to list
-        setFiles(prev => [{ ...data.file, url: `${API_URL}/api/files/${data.file.id}/serve?token=${token}` }, ...prev]);
+        const newFile = { ...data.file };
+        setFiles(prev => [newFile, ...prev]);
+        if (newFile.type === 'image') loadBlobUrls([newFile]);
         // Refresh user data to update storage
         fetchUserData();
       } catch (err) {
@@ -369,6 +429,11 @@ export default function NianStorage(props) {
       });
 
       if (response.ok) {
+        if (blobUrlsRef.current[fileId]) {
+          URL.revokeObjectURL(blobUrlsRef.current[fileId]);
+          delete blobUrlsRef.current[fileId];
+          setBlobUrls(prev => { const n = {...prev}; delete n[fileId]; return n; });
+        }
         setFiles(prev => prev.filter(f => f.id !== fileId));
         // Refresh user data to update storage
         fetchUserData();
@@ -389,6 +454,25 @@ export default function NianStorage(props) {
 
   const handleDownload = (file) => {
     setViewerModal({ show: true, file });
+  };
+
+  const downloadFile = async (file) => {
+    try {
+      const response = await fetch(`${API_URL}/api/files/${file.id}/serve`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Download failed: ' + err.message);
+    }
   };
 
   const closeViewer = () => {
@@ -899,14 +983,10 @@ export default function NianStorage(props) {
                   >
                     {f.type === 'image' ? (
                       <img 
-                        src={f.url} 
+                        src={blobUrls[f.id] || ''} 
                         alt={f.name} 
                         className="file-thumbnail"
-                        onError={(e) => {
-                          console.error('Failed to load image:', f.url);
-                          e.target.style.display = 'none';
-                        }}
-                        onLoad={() => console.log('Image loaded:', f.url)}
+                        onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     ) : (
                       <div className="icon-box" style={{ background: f.color + "15", color: f.color, marginBottom: 12 }}>
@@ -958,14 +1038,10 @@ export default function NianStorage(props) {
                   >
                     {f.type === 'image' ? (
                       <img 
-                        src={f.url} 
+                        src={blobUrls[f.id] || ''} 
                         alt={f.name} 
                         style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} 
-                        onError={(e) => {
-                          console.error('Failed to load image:', f.url);
-                          e.target.style.display = 'none';
-                        }}
-                        onLoad={() => console.log('Image loaded:', f.url)}
+                        onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     ) : (
                       <div className="icon-box" style={{ background: f.color + "15", color: f.color, width: 48, height: 48 }}>
@@ -1101,14 +1177,14 @@ export default function NianStorage(props) {
             
             {viewerModal.file.type === 'image' ? (
               <img 
-                src={viewerModal.file.url} 
+                src={viewerBlobUrl || ''} 
                 alt={viewerModal.file.name} 
                 className="viewer-media"
                 style={{ objectFit: 'contain' }}
               />
             ) : viewerModal.file.type === 'video' ? (
               <video 
-                src={viewerModal.file.url} 
+                src={viewerBlobUrl || ''} 
                 controls 
                 autoPlay
                 className="viewer-media"
@@ -1118,16 +1194,16 @@ export default function NianStorage(props) {
               </video>
             ) : viewerModal.file.type === 'pdf' ? (
               <iframe
-                src={viewerModal.file.url}
+                src={viewerBlobUrl || ''}
                 style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }}
                 title={viewerModal.file.name}
               />
             ) : viewerModal.file.type === 'docx' || viewerModal.file.type === 'xlsx' ? (
-              <iframe
-                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(viewerModal.file.url)}`}
-                style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }}
-                title={viewerModal.file.name}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#aaa', gap: 16, padding: '32px' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width:48,height:48,opacity:0.5}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span style={{fontSize:14, textAlign:'center'}}>Inline preview not available for this file type</span>
+                <button onClick={() => downloadFile(viewerModal.file)} style={{ padding: '10px 20px', background: '#4a7c59', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Download to view</button>
+              </div>
             ) : viewerModal.file.type === 'txt' ? (
               <div style={{ width: '100%', height: '72vh', overflowY: 'auto', background: '#1a1a2e', borderRadius: 8, padding: '16px 20px', boxSizing: 'border-box' }}>
                 {txtContent === null ? (
@@ -1145,14 +1221,7 @@ export default function NianStorage(props) {
 
             <button 
               className="viewer-download"
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = viewerModal.file.url;
-                link.download = viewerModal.file.name;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
+              onClick={() => downloadFile(viewerModal.file)}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:18,height:18}}>
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>

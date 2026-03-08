@@ -1,5 +1,5 @@
 function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', (process.env.CORS_ORIGIN || '*').replace(/[^\x20-\x7E]/g, '').trim() || '*');
+  res.setHeader('Access-Control-Allow-Origin', (process.env.CORS_ORIGIN || 'https://nian-storage.vercel.app').replace(/[\r\n]/g, '').trim());
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -17,7 +17,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid OAuth provider' });
     }
 
-    const redirectTo = req.headers.origin || 'https://nian-storage.vercel.app';
+    const ALLOWED_REDIRECTS = ['https://nian-storage.vercel.app'];
+    const requestedOrigin = req.headers.origin || '';
+    const redirectTo = ALLOWED_REDIRECTS.includes(requestedOrigin)
+      ? requestedOrigin
+      : ALLOWED_REDIRECTS[0];
     const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/[\r\n]/g, '').trim().replace(/\/$/, '');
     const url = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
 
