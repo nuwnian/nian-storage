@@ -982,12 +982,9 @@ export default function NianStorage(props) {
                     style={{ cursor: 'pointer' }}
                   >
                     {f.type === 'image' ? (
-                      <img 
-                        src={blobUrls[f.id] || ''} 
-                        alt={f.name} 
-                        className="file-thumbnail"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
+                      blobUrls[f.id]
+                        ? <img src={blobUrls[f.id]} alt={f.name} className="file-thumbnail" />
+                        : <div className="file-thumbnail" style={{ background: '#dde4d4', borderRadius: 8 }} />
                     ) : (
                       <div className="icon-box" style={{ background: f.color + "15", color: f.color, marginBottom: 12 }}>
                         {icons[f.type] || icons['doc']}
@@ -1037,12 +1034,9 @@ export default function NianStorage(props) {
                     style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, cursor: 'pointer' }}
                   >
                     {f.type === 'image' ? (
-                      <img 
-                        src={blobUrls[f.id] || ''} 
-                        alt={f.name} 
-                        style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} 
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
+                      blobUrls[f.id]
+                        ? <img src={blobUrls[f.id]} alt={f.name} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                        : <div style={{ width: 48, height: 48, borderRadius: 8, flexShrink: 0, background: '#dde4d4' }} />
                     ) : (
                       <div className="icon-box" style={{ background: f.color + "15", color: f.color, width: 48, height: 48 }}>
                         {icons[f.type] || icons['doc']}
@@ -1176,28 +1170,17 @@ export default function NianStorage(props) {
             </div>
             
             {viewerModal.file.type === 'image' ? (
-              <img 
-                src={viewerBlobUrl || ''} 
-                alt={viewerModal.file.name} 
-                className="viewer-media"
-                style={{ objectFit: 'contain' }}
-              />
+              viewerBlobUrl
+                ? <img src={viewerBlobUrl} alt={viewerModal.file.name} className="viewer-media" style={{ objectFit: 'contain' }} />
+                : <div className="viewer-media" style={{ display:'flex', alignItems:'center', justifyContent:'center', color:'#aaa' }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:40,height:40,animation:'spin 1s linear infinite'}}><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/></svg></div>
             ) : viewerModal.file.type === 'video' ? (
-              <video 
-                src={viewerBlobUrl || ''} 
-                controls 
-                autoPlay
-                className="viewer-media"
-                style={{ width: '100%' }}
-              >
-                Your browser does not support the video tag.
-              </video>
+              viewerBlobUrl
+                ? <video src={viewerBlobUrl} controls autoPlay className="viewer-media" style={{ width: '100%' }}>Your browser does not support the video tag.</video>
+                : <div className="viewer-media" style={{ display:'flex', alignItems:'center', justifyContent:'center', color:'#aaa' }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:40,height:40,animation:'spin 1s linear infinite'}}><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/></svg></div>
             ) : viewerModal.file.type === 'pdf' ? (
-              <iframe
-                src={viewerBlobUrl || ''}
-                style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }}
-                title={viewerModal.file.name}
-              />
+              viewerBlobUrl
+                ? <iframe src={viewerBlobUrl} style={{ width: '100%', height: '72vh', border: 'none', borderRadius: 8, background: '#fff' }} title={viewerModal.file.name} />
+                : <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200, color:'#aaa' }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:40,height:40,animation:'spin 1s linear infinite'}}><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/></svg></div>
             ) : viewerModal.file.type === 'docx' || viewerModal.file.type === 'xlsx' ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#aaa', gap: 16, padding: '32px' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{width:48,height:48,opacity:0.5}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
