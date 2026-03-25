@@ -124,13 +124,34 @@ router.get('/me', async (req, res) => {
     }
 
     // Get user profile (use admin to bypass RLS since we already verified token)
-    const { data: userData, error: userError } = await supabaseAdmin
+    let { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (userError) {
+    // If user doesn't exist, create their record (handles edge cases)
+    if (userError && userError.code === 'PGRST116') {
+      console.log('User record not found, creating one...');
+      const { data: newUserData, error: createError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: user.id,
+          email: user.email,
+          name: user.user_metadata?.full_name || user.email?.split('@')[0],
+          storage_used: 0,
+          storage_total: 10737418240, // 10 GB
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Failed to create user record:', createError);
+        return res.status(400).json({ error: 'Failed to initialize user account' });
+      }
+      userData = newUserData;
+    } else if (userError) {
+      console.error('User lookup error:', userError);
       return res.status(400).json({ error: userError.message });
     }
 
