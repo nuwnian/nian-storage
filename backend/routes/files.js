@@ -178,7 +178,8 @@ router.get('/:id/content', verifyUser, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-router.post('/upload', verifyUser, upload.single('file'), async (req, res) => {
+
+router.post('/', verifyUser, upload.single('file'), async (req, res) => {
   try {
     console.log('Upload request received from user:', req.userId);
     console.log('File info:', req.file ? { name: req.file.originalname, size: req.file.size, type: req.file.mimetype } : 'No file');
