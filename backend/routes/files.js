@@ -228,15 +228,53 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
     }
 
     // Check storage limit (use admin to bypass RLS)
-    const { data: userData } = await supabaseAdmin
+    let { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('storage_used, storage_total')
       .eq('id', req.userId)
       .single();
 
     console.log('User storage data:', userData);
+    
+    if (userError && userError.code !== 'PGRST116') {
+      // PGRST116 = no rows returned, which is fine - we'll create the user
+      console.error('User lookup error:', userError);
+      return res.status(400).json({ error: 'Unable to check storage' });
+    }
 
-    if (userData && userData.storage_used + size > userData.storage_total) {
+    // If user doesn't exist, create their record (handles OAuth users and race conditions)
+    if (!userData) {
+      console.log('User record not found, creating one...');
+      const { data: authUser, error: authError } = await supabase.auth.getUser(
+        req.headers.authorization?.replace('Bearer ', '')
+      );
+      
+      if (!authUser?.user?.email) {
+        return res.status(400).json({ error: 'Unable to retrieve user information' });
+      }
+
+      const { data: newUserData, error: createError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: req.userId,
+          email: authUser.user.email,
+          name: authUser.user.user_metadata?.name || authUser.user.email.split('@')[0],
+          storage_used: 0,
+          storage_total: 10737418240, // 10 GB
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Failed to create user record:', createError);
+        return res.status(400).json({ error: 'Failed to initialize user account' });
+      }
+
+      userData = newUserData;
+      console.log('User record created:', userData.id);
+    }
+
+    if (userData.storage_used + size > userData.storage_total) {
       return res.status(400).json({ error: 'Storage limit exceeded' });
     }
 
@@ -278,11 +316,16 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
 
     console.log('File saved to database:', newFile.id);
 
-    // Update user's storage used (userData already fetched above)
-    await supabaseAdmin
+    // Update user's storage used (userData already fetched above, validated to exist)
+    const { error: updateError } = await supabaseAdmin
       .from('users')
       .update({ storage_used: (userData.storage_used || 0) + size })
       .eq('id', req.userId);
+    
+    if (updateError) {
+      console.error('Storage update error:', updateError);
+      console.warn('File saved but storage_used not updated - user may need storage refresh');
+    }
 
     res.status(201).json({
       message: 'File uploaded successfully',
