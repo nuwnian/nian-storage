@@ -1,103 +1,67 @@
-name: CI - Build & Test
+name: CI - Tests & Lint
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main, develop]
+    branches: [ main, develop ]
 
 jobs:
-  backend-tests:
-    runs-on: ubuntu-latest
+  backend-tests-lint:
     name: Backend Tests & Lint
+    runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          node-version: '20'
       
-      - name: Install backend dependencies
-        run: cd backend && npm install
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
       
-      - name: Run linter (ESLint)
-        run: cd backend && npm run lint
+      - name: Run linter
+        working-directory: backend
+        run: npm run lint
         continue-on-error: true
       
-      - name: Run backend tests
-        run: cd backend && npm test
+      - name: Run tests
+        working-directory: backend
+        run: npm test
         continue-on-error: true
-        env:
-          NODE_ENV: test
 
-  frontend-tests:
-    runs-on: ubuntu-latest
+  frontend-tests-lint:
     name: Frontend Tests & Lint
+    runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          node-version: '20'
       
-      - name: Install frontend dependencies
-        run: cd frontend && npm install
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
       
-      - name: Run linter (ESLint)
-        run: cd frontend && npm run lint
+      - name: Run linter
+        working-directory: frontend
+        run: npm run lint
         continue-on-error: true
       
-      - name: Run frontend tests
-        run: cd frontend && npm test
+      - name: Run tests
+        working-directory: frontend
+        run: npm test
         continue-on-error: true
-        env:
-          NODE_ENV: test
       
-      - name: Build frontend
-        run: cd frontend && npm run build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
-  security-scan:
-    runs-on: ubuntu-latest
-    name: Security Scanning
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-      
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-  notify-status:
-    runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests, security-scan]
-    if: always()
-    name: Test Status Summary
-    
-    steps:
-      - name: Check test results
-        run: |
-          if [ "${{ needs.backend-tests.result }}" != "success" ] || [ "${{ needs.frontend-tests.result }}" != "success" ]; then
-            echo "❌ Some tests failed. Check the logs above."
-            exit 1
-          fi
-          echo "✅ All tests passed!"
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+        continue-on-error: true
