@@ -2,13 +2,13 @@
  * R2 Connection Test Script
  * Run this to verify R2 credentials and connectivity
  * 
- * Usage: node test-r2.js
+ * Usage: node backend/test-r2-connection.js
  */
 
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: './backend/.env' });
+dotenv.config();
 
 const config = {
   R2_ENDPOINT: process.env.R2_ENDPOINT,
