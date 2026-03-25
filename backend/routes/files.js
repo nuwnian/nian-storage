@@ -122,14 +122,30 @@ router.get('/:id/serve', async (req, res) => {
 
     if (fileError || !file) return res.status(404).json({ error: 'File not found' });
 
-    const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
-    const key = publicBase && file.url.startsWith(publicBase)
-      ? file.url.slice(publicBase.length + 1)
-      : file.url.includes('/users/')
-        ? file.url.substring(file.url.indexOf('/users/') + 1)
-        : `users/${user.id}/${file.url.split('/').pop()}`;
+    console.log('Serve file:', { fileId: req.params.id, fileName: file.name, fileUrl: file.url });
 
-    const command = new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key });
+    // Reconstruct R2 key from stored URL
+    const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
+    let key;
+    
+    if (!file.url) {
+      console.error('File has no URL stored');
+      return res.status(400).json({ error: 'File URL not found' });
+    }
+
+    // Extract key from URL
+    if (publicBase && file.url.startsWith(publicBase)) {
+      key = file.url.slice(publicBase.length + 1);
+    } else if (file.url.includes('/users/')) {
+      key = file.url.substring(file.url.indexOf('/users/'));
+    } else {
+      // Fallback: assume file.url is already just the key
+      key = file.url;
+    }
+
+    console.log('Fetching from R2:', { bucket: process.env.R2_BUCKET_NAME, key });
+
+    const command = new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key });
     const r2Response = await r2Client.send(command);
 
     const bodyBytes = await r2Response.Body.transformToByteArray();
@@ -139,8 +155,8 @@ router.get('/:id/serve', async (req, res) => {
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.end(Buffer.from(bodyBytes));
   } catch (error) {
-    console.error('Serve file error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Serve file error:', { message: error.message, stack: error.stack, code: error.code });
+    res.status(500).json({ error: 'Failed to retrieve file: ' + error.message });
   }
 });
 
@@ -162,20 +178,36 @@ router.get('/:id/content', verifyUser, async (req, res) => {
       return res.status(400).json({ error: 'Content preview only supported for txt files' });
     }
 
-    const publicBase = process.env.R2_PUBLIC_URL.replace(/\/$/, '');
-    const key = file.url.startsWith(publicBase)
-      ? file.url.slice(publicBase.length + 1)
-      : `users/${req.userId}/${file.url.split('/').pop()}`;
+    console.log('Content request:', { fileId: req.params.id, fileName: file.name, fileUrl: file.url });
 
-    const command = new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key });
+    const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
+    let key;
+
+    if (!file.url) {
+      console.error('File has no URL stored');
+      return res.status(400).json({ error: 'File URL not found' });
+    }
+
+    // Extract key from URL
+    if (publicBase && file.url.startsWith(publicBase)) {
+      key = file.url.slice(publicBase.length + 1);
+    } else if (file.url.includes('/users/')) {
+      key = file.url.substring(file.url.indexOf('/users/'));
+    } else {
+      key = file.url;
+    }
+
+    console.log('Fetching text from R2:', { bucket: process.env.R2_BUCKET_NAME, key });
+
+    const command = new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key });
     const r2Response = await r2Client.send(command);
 
     const text = await r2Response.Body.transformToString('utf-8');
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.end(text);
   } catch (error) {
-    console.error('Content fetch error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Content fetch error:', { message: error.message, stack: error.stack, code: error.code });
+    res.status(500).json({ error: 'Failed to retrieve file content: ' + error.message });
   }
 });
 

@@ -13,10 +13,28 @@ import crypto from 'crypto';
  */
 export async function uploadToR2(fileBuffer, fileName, mimeType, userId) {
   try {
+    // Validate inputs
+    if (!fileBuffer || fileBuffer.length === 0) {
+      throw new Error('File buffer is empty');
+    }
+    if (!fileName) {
+      throw new Error('File name is required');
+    }
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
     // Generate unique file key
     const fileExtension = fileName.split('.').pop();
     const uniqueId = crypto.randomUUID();
     const key = `users/${userId}/${uniqueId}.${fileExtension}`;
+
+    console.log('R2 upload starting:', { 
+      bucket: R2_BUCKET_NAME, 
+      key, 
+      fileSize: fileBuffer.length, 
+      mimeType 
+    });
 
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
@@ -29,7 +47,8 @@ export async function uploadToR2(fileBuffer, fileName, mimeType, userId) {
       },
     });
 
-    await r2Client.send(command);
+    const response = await r2Client.send(command);
+    console.log('R2 PutObjectCommand response:', { status: response.$metadata?.httpStatusCode });
 
     // Return public URL
     const url = `${R2_PUBLIC_URL}/${key}`;
@@ -37,8 +56,13 @@ export async function uploadToR2(fileBuffer, fileName, mimeType, userId) {
 
     return { key, url };
   } catch (error) {
-    console.error('R2 upload error:', error);
-    throw new Error('Failed to upload file to storage');
+    console.error('R2 upload error:', { 
+      message: error.message, 
+      code: error.code,
+      statusCode: error.$metadata?.httpStatusCode,
+      name: error.name
+    });
+    throw new Error(`Failed to upload file to storage: ${error.message}`);
   }
 }
 
