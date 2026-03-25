@@ -40,23 +40,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const pr = context.payload.pull_request;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `**📋 PR Checklist:**
-              
-- [ ] Tests are passing ✅
-- [ ] No breaking changes
-- [ ] Code follows project style guide
-- [ ] Documentation updated (if needed)
-- [ ] Environment variables documented
-
-**Build Status:**
-- [ ] Frontend builds successfully
-- [ ] Backend builds successfully
-- [ ] No console errors/warnings`
+              body: "**📋 PR Checklist:**\n\n- [ ] Tests are passing ✅\n- [ ] No breaking changes\n- [ ] Code follows project style guide\n- [ ] Documentation updated (if needed)\n- [ ] Environment variables documented\n\n**Build Status:**\n- [ ] Frontend builds successfully\n- [ ] Backend builds successfully\n- [ ] No console errors/warnings"
             })
 
   validate-files:
