@@ -333,6 +333,7 @@ export default function NianStorage(props) {
           try {
             const data = JSON.parse(xhr.responseText);
             setUploadProgress({ uploading: true, progress: 100, fileName: file.name, phase: 'done' });
+            console.log('[UPLOAD XHR] ✅ Success:', xhr.status);
             resolve(data);
           } catch (err) {
             reject(new Error('Failed to parse response'));
@@ -340,8 +341,10 @@ export default function NianStorage(props) {
         } else {
           try {
             const data = JSON.parse(xhr.responseText);
+            console.log('[UPLOAD XHR] ❌ Error:', xhr.status, data);
             reject(new Error(data.error || `Upload failed with status ${xhr.status}`));
           } catch {
+            console.log('[UPLOAD XHR] ❌ Error:', xhr.status, xhr.responseText);
             reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText || xhr.statusText}`));
           }
         }
@@ -369,6 +372,9 @@ export default function NianStorage(props) {
       });
 
       // Open and send request
+      console.log('[UPLOAD XHR] Sending to:', `${API_URL}/api/files`);
+      console.log('[UPLOAD XHR] Authorization header:', token ? 'Bearer ' + token.substring(0, 20) + '...' : '❌ NO TOKEN');
+      
       xhr.open('POST', `${API_URL}/api/files`);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(formData);
@@ -377,6 +383,9 @@ export default function NianStorage(props) {
 
   const handleFileUpload = async (fileList) => {
     if (!fileList || fileList.length === 0) return;
+    
+    console.log('[UPLOAD DEBUG] Token:', token ? '✅ Present' : '❌ Missing');
+    console.log('[UPLOAD DEBUG] Token value:', token?.substring(0, 30) + '...');
     
     if (!token) {
       setError('You must be logged in to upload files');
@@ -403,6 +412,7 @@ export default function NianStorage(props) {
 
       try {
         setUploadProgress({ uploading: true, progress: 0, fileName: file.name });
+        console.log('[UPLOAD DEBUG] Uploading:', { fileName: file.name, size: file.size, type: file.type });
         const data = await uploadFileWithProgress(file, formData, token);
         
         // Add new file to list

@@ -21,19 +21,25 @@ const verifyUser = async (req, res, next) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     if (!token) {
+      console.log('[AUTH] No token provided in request');
       return res.status(401).json({ error: 'No token provided' });
     }
 
+    // Verify token with Supabase - getUser() verifies the JWT token and returns the user
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      return res.status(401).json({ error: 'Invalid token' });
+      console.error('[AUTH] Token verification failed:', error?.message || 'No user data');
+      return res.status(401).json({ error: 'Invalid token: ' + (error?.message || 'User not found') });
     }
 
     req.userId = user.id;
+    req.userEmail = user.email;
+    console.log('[AUTH] ✅ Authenticated user:', req.userId);
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Authentication failed' });
+    console.error('[AUTH] Middleware exception:', error.message);
+    res.status(401).json({ error: 'Authentication failed: ' + error.message });
   }
 };
 
@@ -213,48 +219,60 @@ router.get('/:id/content', verifyUser, async (req, res) => {
 
 router.post('/', verifyUser, upload.single('file'), async (req, res) => {
   try {
-    console.log('Upload request received from user:', req.userId);
-    console.log('File info:', req.file ? { name: req.file.originalname, size: req.file.size, type: req.file.mimetype } : 'No file');
+    console.log('\n========== UPLOAD REQUEST ==========');
+    console.log('[UPLOAD] User ID:', req.userId);
+    console.log('[UPLOAD] Email:', req.userEmail);
+    console.log('[UPLOAD] Request headers:', {
+      'content-type': req.headers['content-type'],
+      'authorization': req.headers['authorization']?.substring(0, 20) + '...'
+    });
     
     if (!req.file) {
-      console.log('ERROR: No file in request');
-      return res.status(400).json({ error: 'No file uploaded' });
+      console.log('[UPLOAD] ❌ ERROR: No file received by multer');
+      console.log('[UPLOAD] req.file:', req.file);
+      console.log('[UPLOAD] req.files:', req.files);
+      console.log('[UPLOAD] req.body:', req.body);
+      return res.status(400).json({ error: 'No file uploaded - ensure file field is named "file"' });
     }
 
-    const { originalname, mimetype, size, buffer } = req.file;
+    console.log('[UPLOAD] ✅ File received:', {
+      name: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
 
     // Determine file type based on MIME type and extension
     let fileType = 'doc';
     let fileColor = '#5B8C7A'; // Default color for documents
     
-    const extension = originalname.toLowerCase().split('.').pop();
+    const extension = req.file.originalname.toLowerCase().split('.').pop();
     
-    if (mimetype.startsWith('image/')) {
+    if (req.file.mimetype.startsWith('image/')) {
       fileType = 'image';
       fileColor = '#7BA05B'; // Green for images
-    } else if (mimetype.startsWith('video/')) {
+    } else if (req.file.mimetype.startsWith('video/')) {
       fileType = 'video';
       fileColor = '#D97706'; // Orange for videos
-    } else if (mimetype === 'application/pdf' || extension === 'pdf') {
+    } else if (req.file.mimetype === 'application/pdf' || extension === 'pdf') {
       fileType = 'pdf';
       fileColor = '#DC2626'; // Red for PDFs
     } else if (
-      mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      mimetype === 'application/msword' ||
+      req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      req.file.mimetype === 'application/msword' ||
       extension === 'docx' ||
       extension === 'doc'
     ) {
       fileType = 'docx';
       fileColor = '#2563EB'; // Blue for Word docs
     } else if (
-      mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      mimetype === 'application/vnd.ms-excel' ||
+      req.file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      req.file.mimetype === 'application/vnd.ms-excel' ||
       extension === 'xlsx' ||
       extension === 'xls'
     ) {
       fileType = 'xlsx';
       fileColor = '#059669'; // Green for Excel
-    } else if (mimetype === 'text/plain' || extension === 'txt') {
+    } else if (req.file.mimetype === 'text/plain' || extension === 'txt') {
       fileType = 'txt';
       fileColor = '#6B7280'; // Gray for text files
     }
@@ -266,12 +284,13 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
       .eq('id', req.userId)
       .single();
 
-    console.log('User storage data:', userData);
+    console.log('[UPLOAD] User storage data:', userData);
+    console.log('[UPLOAD] User storage error:', userError);
     
     if (userError && userError.code !== 'PGRST116') {
       // PGRST116 = no rows returned, which is fine - we'll create the user
-      console.error('User lookup error:', userError);
-      return res.status(400).json({ error: 'Unable to check storage' });
+      console.error('[UPLOAD] ❌ User lookup error:', userError);
+      return res.status(400).json({ error: 'Unable to check storage: ' + userError.message });
     }
 
     // If user doesn't exist, create their record (handles OAuth users and race conditions)
@@ -306,14 +325,27 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
       console.log('User record created:', userData.id);
     }
 
-    if (userData.storage_used + size > userData.storage_total) {
+    if (userData.storage_used + req.file.size > userData.storage_total) {
       return res.status(400).json({ error: 'Storage limit exceeded' });
     }
 
     // Upload to Cloudflare R2
-    console.log('Uploading to R2...');
-    const { key, url } = await uploadToR2(buffer, originalname, mimetype, req.userId);
-    console.log('R2 upload successful:', { key, url });
+    console.log('[UPLOAD] Uploading to R2...');
+    let uploadResult;
+    try {
+      uploadResult = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype, req.userId);
+      console.log('[UPLOAD] ✅ R2 upload successful:', { key: uploadResult.key, url: uploadResult.url });
+    } catch (r2Error) {
+      console.error('[UPLOAD] ❌ R2 upload FAILED:', {
+        message: r2Error.message,
+        name: r2Error.name,
+        code: r2Error.code,
+        statusCode: r2Error.$metadata?.httpStatusCode
+      });
+      return res.status(500).json({ error: 'Failed to upload file to storage: ' + r2Error.message });
+    }
+    
+    const { key, url } = uploadResult;
 
     // Format file size for display
     const formatSize = (bytes) => {
@@ -324,16 +356,16 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
     };
 
     // Save file metadata to database (using admin client to bypass RLS)
-    console.log('Saving to database...');
+    console.log('[UPLOAD] Saving metadata to database...');
     const { data: newFile, error: fileError } = await supabaseAdmin
       .from('files')
       .insert([
         {
           user_id: req.userId,
-          name: originalname,
+          name: req.file.originalname,
           type: fileType,
-          size: formatSize(size),
-          size_bytes: size,
+          size: formatSize(req.file.size),
+          size_bytes: req.file.size,
           url: url,
           color: fileColor,
         }
@@ -342,29 +374,33 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
       .single();
 
     if (fileError) {
-      console.error('Database insert error:', fileError);
-      return res.status(400).json({ error: fileError.message });
+      console.error('[UPLOAD] ❌ Database insert FAILED:', fileError);
+      return res.status(400).json({ error: 'Failed to save file metadata: ' + fileError.message });
     }
 
-    console.log('File saved to database:', newFile.id);
+    console.log('[UPLOAD] ✅ File saved to database:', newFile.id);
 
-    // Update user's storage used (userData already fetched above, validated to exist)
+    // Update user's storage used
+    console.log('[UPLOAD] Updating user storage...');
     const { error: updateError } = await supabaseAdmin
       .from('users')
-      .update({ storage_used: (userData.storage_used || 0) + size })
+      .update({ storage_used: (userData.storage_used || 0) + req.file.size })
       .eq('id', req.userId);
     
     if (updateError) {
-      console.error('Storage update error:', updateError);
-      console.warn('File saved but storage_used not updated - user may need storage refresh');
+      console.error('[UPLOAD] ⚠️  Storage update error:', updateError);
+      console.warn('[UPLOAD] File saved but storage_used not updated - user may need refresh');
+    } else {
+      console.log('[UPLOAD] ✅ User storage updated');
     }
 
+    console.log('[UPLOAD] ✅✅✅ UPLOAD COMPLETE - SUCCESS');
     res.status(201).json({
       message: 'File uploaded successfully',
       file: newFile
     });
   } catch (error) {
-    console.error('Upload error - Full details:', {
+    console.error('[UPLOAD] ❌❌❌ UPLOAD FAILED - Exception:', {
       message: error.message,
       stack: error.stack,
       name: error.name

@@ -243,11 +243,27 @@ router.post('/oauth/:provider', async (req, res) => {
     }
 
     console.log('Initiating Supabase OAuth for:', provider);
-    const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'http://localhost:3000';
+    
+    // Determine redirect URL based on environment
+    // IMPORTANT: This URL MUST be configured in Supabase Dashboard > Authentication > Providers
+    let redirectUrl;
+    
+    if (process.env.NODE_ENV === 'production') {
+      redirectUrl = 'https://nian-storage.vercel.app';
+    } else {
+      // For development: use localhost with port
+      redirectUrl = 'http://localhost:3000';
+    }
+    
+    console.log(`[OAuth] Environment: ${process.env.NODE_ENV || 'not set'}`);
+    console.log(`[OAuth] Redirect URL: ${redirectUrl}`);
+    console.log(`[OAuth] Provider: ${provider}`);
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider,
       options: {
-        redirectTo: origin,
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: false,
       }
     });
 
