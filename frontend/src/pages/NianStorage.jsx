@@ -107,16 +107,37 @@ export default function NianStorage(props) {
   const blobUrlsRef = useRef({});
   const [txtContent, setTxtContent] = useState(null);
   const fileInputRef = useRef(null);
+  const [isSessionReady, setIsSessionReady] = useState(!!token);
 
   // Fetch files on mount
   useEffect(() => {
+    console.log('[AUTH DEBUG] Component mounted - checking session status');
+    console.log('[AUTH DEBUG] isSessionReady:', isSessionReady, '- token:', token ? '✅ Present' : '❌ Missing');
+
     if (token) {
+      console.log('[AUTH DEBUG] Token passed via props - session ready');
+      setIsSessionReady(true);
       fetchFiles();
       fetchUserData();
     } else {
+      console.log('[AUTH DEBUG] No token in props - waiting for session restoration');
+      setIsSessionReady(false);
       setLoading(false);
     }
   }, [token]);
+
+  // Monitor session restoration from URL hash (OAuth redirect)
+  useEffect(() => {
+    console.log('[AUTH DEBUG] Setting up auth state change listener');
+    
+    // Note: This component receives token via props from parent (NianLogin)
+    // Parent handles Supabase session restoration
+    // This effect logs the session status for debugging
+    
+    return () => {
+      console.log('[AUTH DEBUG] Cleaning up auth listener');
+    };
+  }, []);
 
   // Fetch viewer blob URL when modal opens
   useEffect(() => {
@@ -386,9 +407,17 @@ export default function NianStorage(props) {
     
     console.log('[UPLOAD DEBUG] Token:', token ? '✅ Present' : '❌ Missing');
     console.log('[UPLOAD DEBUG] Token value:', token?.substring(0, 30) + '...');
+    console.log('[UPLOAD DEBUG] Session ready:', isSessionReady);
     
     if (!token) {
       setError('You must be logged in to upload files');
+      console.log('[UPLOAD DEBUG] ❌ No token - upload blocked');
+      return;
+    }
+
+    if (!isSessionReady) {
+      setError('⏳ Session is loading... Please wait before uploading');
+      console.log('[UPLOAD DEBUG] ⏳ Session not ready yet - upload blocked');
       return;
     }
     
@@ -897,17 +926,32 @@ export default function NianStorage(props) {
           />
           <div
             className={`upload-zone ${dragging ? "drag" : ""}`}
-            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragOver={e => { e.preventDefault(); if (isSessionReady) setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={e => { 
               e.preventDefault(); 
               setDragging(false); 
-              handleFileUpload(e.dataTransfer.files);
+              if (isSessionReady) handleFileUpload(e.dataTransfer.files);
             }}
-            onClick={() => fileInputRef.current?.click()}
-            style={{ marginBottom: 28 }}
+            onClick={() => isSessionReady && fileInputRef.current?.click()}
+            style={{ marginBottom: 28, opacity: isSessionReady ? 1 : 0.5, pointerEvents: isSessionReady ? 'auto' : 'none' }}
           >
-            {uploadProgress.uploading ? (
+            {!isSessionReady && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#A3B48A" strokeWidth="2" style={{ width: 48, height: 48, marginBottom: 12, animation: 'spin 1s linear infinite' }}>
+                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                  <path d="M12 2a10 10 0 0110 10" strokeLinecap="round" />
+                </svg>
+                <style>{
+                  `@keyframes spin { to { transform: rotate(360deg); } }`
+                }</style>
+                <div style={{ fontWeight: 600, fontSize: 15, color: "#A3B48A", marginBottom: 12, textAlign: 'center', maxWidth: '80%' }}>
+                  ⏳ Loading session... Please wait
+                </div>
+                <p style={{ fontSize: 13, color: "#6B7D5A", margin: 0 }}>Session restoration from login in progress</p>
+              </div>
+            )}
+            {isSessionReady && uploadProgress.uploading ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#4A7C3F" strokeWidth="2" style={{ width: 48, height: 48, marginBottom: 12, animation: 'spin 1s linear infinite' }}>
                   <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
