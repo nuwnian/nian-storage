@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from './config/supabase.js';
 import NianLogin from './pages/NianLogin';
 import NianStorage from './pages/NianStorage';
 
@@ -7,62 +8,80 @@ function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sessionRestored, setSessionRestored] = useState(false);
 
-  // Check if user is already logged in on app load
+  // Listen for auth state changes (session restoration, login, logout)
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const session = localStorage.getItem('supabase.auth.token');
-      
-      if (!session) {
-        setLoading(false);
-        return;
-      }
-
-      // Verify session with backend
-      const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
-      const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${session}`
-        }
+    console.log('[AUTH] Setting up auth state listener');
+    
+    // ✅ CRITICAL: onAuthStateChange fires when:
+    // - Component mounts (checks persisted session)
+    // - URL hash tokens are detected and processed
+    // - User logs in/out
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[AUTH STATE CHANGE]', {
+        event,
+        hasSession: !!session,
+        user: session?.user?.email || 'null',
+        timestamp: new Date().toISOString()
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        setToken(session);
+      if (event === 'INITIAL_SESSION') {
+        // INITIAL_SESSION fires after app load, session restoration complete
+        console.log('[AUTH] ✅ Initial session check complete');
+        setSessionRestored(true);
+
+        if (session?.access_token) {
+          console.log('[AUTH] ✅ Session restored from persistence or URL hash');
+          setUser(session.user);
+          setToken(session.access_token);
+          setLoggedIn(true);
+        } else {
+          console.log('[AUTH] ⚠️ No session found');
+          setLoggedIn(false);
+        }
+        setLoading(false);
+      } else if (event === 'SIGNED_IN') {
+        console.log('[AUTH] ✅ User signed in');
+        setUser(session.user);
+        setToken(session.access_token);
         setLoggedIn(true);
-      } else {
-        // Invalid session, clear it
-        localStorage.removeItem('supabase.auth.token');
+      } else if (event === 'SIGNED_OUT') {
+        console.log('[AUTH] ⚠️ User signed out');
+        setUser(null);
+        setToken(null);
+        setLoggedIn(false);
+      } else if (event === 'TOKEN_REFRESHED') {
+        console.log('[AUTH] 🔄 Token refreshed');
+        if (session?.access_token) {
+          setToken(session.access_token);
+        }
       }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('supabase.auth.token');
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+
+    return () => {
+      console.log('[AUTH] Cleaning up auth listener');
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleLogin = (userData, accessToken) => {
-    localStorage.setItem('supabase.auth.token', accessToken);
+    console.log('[LOGIN] User logged in:', userData.email);
     setUser(userData);
     setToken(accessToken);
     setLoggedIn(true);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('supabase.auth.token');
+    console.log('[LOGOUT] User logged out');
     setUser(null);
     setToken(null);
     setLoggedIn(false);
+    supabase.auth.signOut();
   };
 
   // Show loading state while checking auth
-  if (loading) {
+  if (loading || !sessionRestored) {
     return (
       <div style={{
         display: 'flex',
@@ -82,7 +101,9 @@ function App() {
           }}>
             nian<span style={{ color: '#E07A2F' }}>.</span>
           </div>
-          <div style={{ fontSize: 14, color: '#6B7D5A' }}>Loading...</div>
+          <div style={{ fontSize: 14, color: '#6B7D5A' }}>
+            {loading || !sessionRestored ? 'Checking session...' : 'Loading...'}
+          </div>
         </div>
       </div>
     );
