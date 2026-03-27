@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { setCors } from '../_helpers.js';
 
 let supabase;
 try {
@@ -7,16 +8,9 @@ try {
   console.error('Supabase init failed:', e);
 }
 
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', (process.env.CORS_ORIGIN || 'https://nian-storage.vercel.app').replace(/[\r\n]/g, '').trim());
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-}
-
 export default async function handler(req, res) {
   try {
-    setCors(res);
+    setCors(req, res);
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 

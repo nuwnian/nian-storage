@@ -1,18 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
+import { setCors } from '../_helpers.js';
 
 let supabaseAdmin;
 try {
   supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 } catch (e) { console.error('Supabase init failed:', e); }
-
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', (process.env.CORS_ORIGIN || 'https://nian-storage.vercel.app').replace(/[\r\n]/g, '').trim());
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-}
 
 async function verifyUser(req) {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -121,7 +115,7 @@ function formatSize(bytes) {
 
 export default async function handler(req, res) {
   try {
-  setCors(res);
+  setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { user, error: authError, status } = await verifyUser(req);
