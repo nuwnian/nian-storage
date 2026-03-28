@@ -930,17 +930,17 @@ export default function NianStorage(props) {
           />
           <div
             className={`upload-zone ${dragging ? "drag" : ""}`}
-            onDragOver={e => { e.preventDefault(); if (isSessionReady) setDragging(true); }}
+            onDragOver={e => { e.preventDefault(); if (token) setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={e => { 
               e.preventDefault(); 
               setDragging(false); 
-              if (isSessionReady) handleFileUpload(e.dataTransfer.files);
+              if (token) handleFileUpload(e.dataTransfer.files);
             }}
-            onClick={() => isSessionReady && fileInputRef.current?.click()}
-            style={{ marginBottom: 28, opacity: isSessionReady ? 1 : 0.5, pointerEvents: isSessionReady ? 'auto' : 'none' }}
+            onClick={() => token && fileInputRef.current?.click()}
+            style={{ marginBottom: 28, opacity: token ? 1 : 0.5, pointerEvents: token ? 'auto' : 'none' }}
           >
-            {!isSessionReady && (
+            {!token && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#A3B48A" strokeWidth="2" style={{ width: 48, height: 48, marginBottom: 12, animation: 'spin 1s linear infinite' }}>
                   <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
@@ -955,7 +955,7 @@ export default function NianStorage(props) {
                 <p style={{ fontSize: 13, color: "#6B7D5A", margin: 0 }}>Session restoration from login in progress</p>
               </div>
             )}
-            {isSessionReady && uploadProgress.uploading ? (
+            {token && uploadProgress.uploading ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#4A7C3F" strokeWidth="2" style={{ width: 48, height: 48, marginBottom: 12, animation: 'spin 1s linear infinite' }}>
                   <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
