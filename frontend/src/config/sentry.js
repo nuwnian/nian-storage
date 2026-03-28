@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/react";
-import { BrowserTracing } from "@sentry/tracing";
+import { Replay } from "@sentry/replay";
 
 /**
  * Initialize Sentry for error tracking and performance monitoring
@@ -24,16 +24,7 @@ export const initSentry = () => {
     
     // Integrations for enhanced tracking
     integrations: [
-      new BrowserTracing({
-        // Set sampling rate for performance transactions
-        tracingOrigins: [
-          "localhost",
-          /^\//,
-          // Add your API domain here
-          /^https:\/\/api\.yourapp\.com/,
-        ],
-      }),
-      new Sentry.Replay({
+      new Replay({
         maskAllText: true,
         blockAllMedia: true,
       }),

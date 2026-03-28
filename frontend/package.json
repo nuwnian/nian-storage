@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@sentry/react": "^10.46.0",
+    "@sentry/replay": "^7.116.0",
     "@sentry/tracing": "^7.120.4",
     "@supabase/supabase-js": "^2.100.1",
-    "nian-storage": "file:..",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

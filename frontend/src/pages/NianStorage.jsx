@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
+import { useState, useEffect, useRef } from "react";
+import { captureError } from "../config/sentry.js";
+import { API_URL, apiCall, apiCallJson, fetchBlobUrl } from "../config/api.js";
 
 // Fetch a file via auth header and return a revokable blob URL
 function useFileUrl(fileId, token, enabled = true) {
@@ -107,37 +107,24 @@ export default function NianStorage(props) {
   const blobUrlsRef = useRef({});
   const [txtContent, setTxtContent] = useState(null);
   const fileInputRef = useRef(null);
-  const [isSessionReady, setIsSessionReady] = useState(!!token);
 
   // Fetch files on mount
   useEffect(() => {
     console.log('[AUTH DEBUG] Component mounted - checking session status');
-    console.log('[AUTH DEBUG] isSessionReady:', isSessionReady, '- token:', token ? '✅ Present' : '❌ Missing');
+    console.log('[AUTH DEBUG] token:', token ? '✅ Present' : '❌ Missing');
 
     if (token) {
       console.log('[AUTH DEBUG] Token passed via props - session ready');
-      setIsSessionReady(true);
       fetchFiles();
       fetchUserData();
     } else {
       console.log('[AUTH DEBUG] No token in props - waiting for session restoration');
-      setIsSessionReady(false);
       setLoading(false);
     }
   }, [token]);
 
-  // Monitor session restoration from URL hash (OAuth redirect)
-  useEffect(() => {
-    console.log('[AUTH DEBUG] Setting up auth state change listener');
-    
-    // Note: This component receives token via props from parent (NianLogin)
-    // Parent handles Supabase session restoration
-    // This effect logs the session status for debugging
-    
-    return () => {
-      console.log('[AUTH DEBUG] Cleaning up auth listener');
-    };
-  }, []);
+  // Session restoration handled by parent component (App.jsx)
+  // Token passed via props after Supabase restores session
 
   // Fetch viewer blob URL when modal opens
   useEffect(() => {
@@ -145,17 +132,28 @@ export default function NianStorage(props) {
     const subtype = viewerModal.file ? getDocSubtype(viewerModal.file.name) : null;
     const isTxt = viewerModal.file?.type === 'txt' || subtype === 'txt';
     if (viewerModal.show && viewerModal.file && !isTxt) {
-      fetch(`${API_URL}/api/files/${viewerModal.file.id}/serve`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(r => r.blob())
-        .then(blob => { objectUrl = URL.createObjectURL(blob); setViewerBlobUrl(objectUrl); })
-        .catch(() => setViewerBlobUrl(null));
+      (async () => {
+        try {
+          const url = await fetchBlobUrl(`/api/files/${viewerModal.file.id}/serve`, token);
+          if (url) {
+            objectUrl = url;
+            setViewerBlobUrl(url);
+          }
+        } catch (err) {
+          captureError(err, { 
+            operation: 'viewer_blob_fetch',
+            fileId: viewerModal.file?.id,
+            fileName: viewerModal.file?.name
+          });
+          console.error('Failed to fetch file for viewer:', err);
+          setViewerBlobUrl(null);
+        }
+      })();
     } else {
       setViewerBlobUrl(null);
     }
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [viewerModal.show, viewerModal.file]);
+  }, [viewerModal.show, viewerModal.file, token]);
 
   // Fetch txt content when a txt file is opened in the viewer
   useEffect(() => {
@@ -163,16 +161,29 @@ export default function NianStorage(props) {
     const isTxt = viewerModal.file?.type === 'txt' || subtype === 'txt';
     if (viewerModal.show && isTxt) {
       setTxtContent(null);
-      fetch(`${API_URL}/api/files/${viewerModal.file.id}/content`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(r => r.text())
-        .then(text => setTxtContent(text))
-        .catch(() => setTxtContent('Error loading file content.'));
+      (async () => {
+        try {
+          const response = await apiCall(`/api/files/${viewerModal.file.id}/content`, { token });
+          const text = await response.text();
+          if (response.ok) {
+            setTxtContent(text);
+          } else {
+            setTxtContent('Error loading file content.');
+          }
+        } catch (err) {
+          captureError(err, { 
+            operation: 'txt_content_fetch',
+            fileId: viewerModal.file?.id,
+            fileName: viewerModal.file?.name
+          });
+          console.error('Failed to fetch txt content:', err);
+          setTxtContent('Error loading file content.');
+        }
+      })();
     } else {
       setTxtContent(null);
     }
-  }, [viewerModal.show, viewerModal.file]);
+  }, [viewerModal.show, viewerModal.file, token]);
 
   // Close viewer on ESC key
   useEffect(() => {
@@ -197,18 +208,13 @@ export default function NianStorage(props) {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else {
-        console.error('Failed to fetch user data:', response.status);
-      }
+      const data = await apiCallJson('/api/auth/me', token);
+      setUser(data.user);
     } catch (err) {
+      captureError(err, { 
+        operation: 'fetchUserData',
+        endpoint: '/api/auth/me'
+      });
       console.error('Fetch user error:', err);
     }
   };
@@ -220,22 +226,16 @@ export default function NianStorage(props) {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/api/files`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (response.ok) {
-        const withUrls = (data.files || []).map(f => ({ ...f }));
-        setFiles(withUrls);
-        loadBlobUrls(withUrls);
-      } else {
-        setError(data.error || 'Failed to load files');
-        console.error('Failed to fetch files:', response.status, data);
-      }
+      const data = await apiCallJson('/api/files', token);
+      const withUrls = (data.files || []).map(f => ({ ...f }));
+      setFiles(withUrls);
+      loadBlobUrls(withUrls);
     } catch (err) {
-      setError('Failed to connect to server');
+      captureError(err, { 
+        operation: 'fetchFiles',
+        endpoint: '/api/files'
+      });
+      setError(err.message || 'Failed to load files');
       console.error('Fetch files error:', err);
     } finally {
       setLoading(false);
@@ -247,16 +247,19 @@ export default function NianStorage(props) {
     const imageFiles = fileList.filter(f => f.type === 'image' && !blobUrlsRef.current[f.id]);
     Promise.all(imageFiles.map(async (f) => {
       try {
-        const resp = await fetch(`${API_URL}/api/files/${f.id}/serve`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (resp.ok) {
-          const blob = await resp.blob();
-          const url = URL.createObjectURL(blob);
+        const url = await fetchBlobUrl(`/api/files/${f.id}/serve`, token);
+        if (url) {
           blobUrlsRef.current[f.id] = url;
           setBlobUrls(prev => ({ ...prev, [f.id]: url }));
         }
-      } catch { /* skip failed thumbnails */ }
+      } catch (err) {
+        captureError(err, { 
+          operation: 'loadBlobUrls',
+          fileId: f.id,
+          fileName: f.name
+        });
+        console.error(`Failed to load thumbnail for ${f.id}:`, err);
+      }
     }));
   };
 
@@ -407,17 +410,10 @@ export default function NianStorage(props) {
     
     console.log('[UPLOAD DEBUG] Token:', token ? '✅ Present' : '❌ Missing');
     console.log('[UPLOAD DEBUG] Token value:', token?.substring(0, 30) + '...');
-    console.log('[UPLOAD DEBUG] Session ready:', isSessionReady);
     
     if (!token) {
       setError('You must be logged in to upload files');
       console.log('[UPLOAD DEBUG] ❌ No token - upload blocked');
-      return;
-    }
-
-    if (!isSessionReady) {
-      setError('⏳ Session is loading... Please wait before uploading');
-      console.log('[UPLOAD DEBUG] ⏳ Session not ready yet - upload blocked');
       return;
     }
     
@@ -451,6 +447,12 @@ export default function NianStorage(props) {
         // Refresh user data to update storage
         fetchUserData();
       } catch (err) {
+        captureError(err, { 
+          operation: 'handleFileUpload',
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type
+        });
         setError('Upload failed: ' + err.message);
         console.error('Upload error:', err);
       }
@@ -473,11 +475,9 @@ export default function NianStorage(props) {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/files/${fileId}`, {
+      const response = await apiCall(`/api/files/${fileId}`, {
+        token,
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
       });
 
       if (response.ok) {
@@ -495,6 +495,10 @@ export default function NianStorage(props) {
         console.error('Delete failed:', response.status, data);
       }
     } catch (err) {
+      captureError(err, { 
+        operation: 'confirmDelete',
+        fileId: fileId
+      });
       setError('Delete failed: ' + err.message);
       console.error('Delete error:', err);
     }

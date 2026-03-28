@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { setUserContext } from "../config/sentry.js";
-
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
+import { setUserContext, captureError } from "../config/sentry.js";
+import { API_URL, apiCall, apiCallJson } from "../config/api.js";
 
 export default function NianLogin(props) {
   const [mode, setMode] = useState("login");
@@ -24,12 +23,10 @@ export default function NianLogin(props) {
         if (access_token) {
           setLoading(true);
           try {
-            const response = await fetch(`${API_URL}/api/auth/oauth/callback`, {
+            const response = await apiCall('/api/auth/oauth/callback', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ access_token, refresh_token }),
+              token: access_token,
+              body: { access_token, refresh_token },
             });
 
             const data = await response.json();
@@ -51,6 +48,10 @@ export default function NianLogin(props) {
             // Call onLogin with user data and token
             props.onLogin(data.user, data.session.access_token);
           } catch (err) {
+            captureError(err, { 
+              operation: 'oauth_callback',
+              provider: 'oauth'
+            });
             console.error('OAuth callback error:', err);
             setError(err.message || 'OAuth authentication failed');
             setLoading(false);
@@ -65,22 +66,20 @@ export default function NianLogin(props) {
   const handleOAuth = async (provider) => {
     setError('');
     try {
-      const response = await fetch(`${API_URL}/api/auth/oauth/${provider}`, {
+      const data = await apiCallJson(`/api/auth/oauth/${provider}`, null, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
       });
 
-      let data;
-      const text = await response.text();
-      try { data = JSON.parse(text); } catch { throw new Error(`Server error: ${text.slice(0, 120)}`); }
-
-      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
       if (data.url) {
         window.location.href = data.url;
       } else {
         throw new Error('No OAuth URL returned from server');
       }
     } catch (err) {
+      captureError(err, { 
+        operation: 'oauth_login',
+        provider
+      });
       setError('OAuth failed: ' + err.message);
     }
   };
@@ -95,19 +94,10 @@ export default function NianLogin(props) {
         ? { email, password }
         : { email, password, name };
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const data = await apiCallJson(endpoint, null, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
+        body,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
-      }
 
       // Set user context for Sentry error tracking
       setUserContext({
@@ -119,6 +109,11 @@ export default function NianLogin(props) {
       // Call onLogin with user data and token
       props.onLogin(data.user, data.session.access_token);
     } catch (err) {
+      captureError(err, { 
+        operation: 'auth_submit',
+        mode: mode,
+        email: email
+      });
       setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
