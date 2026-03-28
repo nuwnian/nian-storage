@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
+import { setUserContext } from '../config/sentry.js';
 
 const router = express.Router();
 
@@ -46,6 +47,13 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: userError.message });
     }
 
+    // Set user context for error tracking
+    setUserContext({
+      id: userData.id,
+      email: userData.email,
+      username: userData.name,
+    });
+
     res.status(201).json({
       message: 'User registered successfully',
       user: {
@@ -90,6 +98,13 @@ router.post('/login', async (req, res) => {
     if (userError) {
       return res.status(400).json({ error: userError.message });
     }
+
+    // Set user context for error tracking
+    setUserContext({
+      id: userData.id,
+      email: userData.email,
+      username: userData.name,
+    });
 
     res.json({
       message: 'Login successful',
@@ -155,6 +170,13 @@ router.get('/me', async (req, res) => {
       return res.status(400).json({ error: userError.message });
     }
 
+    // Set user context for error tracking
+    setUserContext({
+      id: userData.id,
+      email: userData.email,
+      username: userData.name,
+    });
+
     res.json({
       user: {
         id: userData.id,
@@ -209,6 +231,13 @@ router.post('/oauth/callback', async (req, res) => {
       console.error('User upsert error:', upsertError);
       return res.status(400).json({ error: upsertError.message });
     }
+
+    // Set user context for error tracking
+    setUserContext({
+      id: userData.id,
+      email: userData.email,
+      username: userData.name,
+    });
 
     res.json({
       message: 'OAuth login successful',

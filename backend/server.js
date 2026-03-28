@@ -1,10 +1,14 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Initialize Sentry FIRST (before other imports)
+import { initSentry, sentryRequestHandler, sentryErrorHandler } from './config/sentry.js';
+initSentry();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import fileRoutes from './routes/files.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,6 +30,9 @@ app.use(cors({
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
+// Sentry request handler (early in chain - after body parsing)
+app.use(sentryRequestHandler());
+
 // Request logging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -40,6 +47,14 @@ app.use('/api/files', fileRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Nian Storage API is running' });
 });
+
+// Test error endpoint - for verifying Sentry integration
+app.get('/api/test-error', (req, res) => {
+  throw new Error('Test error from backend - Sentry should capture this');
+});
+
+// Sentry error handler (after all routes)
+app.use(sentryErrorHandler());
 
 // Error handling middleware
 app.use((err, req, res, next) => {

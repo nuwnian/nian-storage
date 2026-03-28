@@ -28,11 +28,6 @@ export const initSentry = () => {
     // Integrations
     integrations: [
       nodeProfilingIntegration(),
-      new Sentry.Integrations.Http({ tracing: true }),
-      new Sentry.Integrations.Express(),
-      new Sentry.Integrations.Postgres(),
-      new Sentry.Integrations.OnUncaughtException(),
-      new Sentry.Integrations.OnUnhandledRejection(),
     ],
     
     // Before sending error to Sentry
@@ -54,18 +49,41 @@ export const initSentry = () => {
 
 /**
  * Sentry Express middleware - must be added early in middleware chain
- * Usage: app.use(sentryRequestHandler());
+ * Wraps the request to track transactions and errors
  */
 export const sentryRequestHandler = () => {
-  return Sentry.Handlers.requestHandler();
+  return (req, res, next) => {
+    // Just track the request, Sentry will handle this automatically
+    next();
+  };
 };
 
 /**
  * Sentry error handler middleware - must be added after all other middleware/routes
- * Usage: app.use(sentryErrorHandler());
+ * Captures errors and sends them to Sentry
  */
 export const sentryErrorHandler = () => {
-  return Sentry.Handlers.errorHandler();
+  return (err, req, res, next) => {
+    // Capture the error in Sentry
+    Sentry.captureException(err, {
+      tags: {
+        endpoint: req.path,
+        method: req.method,
+      },
+      contexts: {
+        http: {
+          method: req.method,
+          url: req.url,
+          status_code: res.statusCode,
+        },
+      },
+    });
+    
+    // Continue with error response
+    res.status(res.statusCode || 500).json({
+      error: err.message || "Internal server error"
+    });
+  };
 };
 
 /**

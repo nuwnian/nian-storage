@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { setUserContext } from "../config/sentry.js";
 
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
@@ -39,6 +40,13 @@ export default function NianLogin(props) {
 
             // Clear the hash from URL
             window.history.replaceState(null, '', window.location.pathname);
+
+            // Set user context for Sentry error tracking
+            setUserContext({
+              id: data.user.id,
+              email: data.user.email,
+              username: data.user.name,
+            });
 
             // Call onLogin with user data and token
             props.onLogin(data.user, data.session.access_token);
@@ -100,6 +108,13 @@ export default function NianLogin(props) {
       if (!response.ok) {
         throw new Error(data.error || 'Authentication failed');
       }
+
+      // Set user context for Sentry error tracking
+      setUserContext({
+        id: data.user.id,
+        email: data.user.email,
+        username: data.user.name,
+      });
 
       // Call onLogin with user data and token
       props.onLogin(data.user, data.session.access_token);

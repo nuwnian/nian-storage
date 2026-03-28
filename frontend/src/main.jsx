@@ -2,6 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 
+// Initialize Sentry FIRST (before rendering React)
+import { initSentry } from './config/sentry.js'
+initSentry()
+
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
