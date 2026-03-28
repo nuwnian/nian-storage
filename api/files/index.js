@@ -153,53 +153,73 @@ export default async function handler(req, res) {
   // POST /api/files  (upload)
   if (req.method === 'POST') {
     try {
+      console.log('=== UPLOAD REQUEST START ===');
+      console.log('Headers:', Object.keys(req.headers).join(', '));
+      
       const parts = await parseMultipart(req);
+      console.log('Parsed parts:', parts.length);
+      
       const filePart = parts.find(p => p.filename);
-      if (!filePart) return res.status(400).json({ error: 'No file uploaded' });
+      if (!filePart) {
+        console.log('ERROR: No file part found');
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
 
       const { filename, contentType: rawContentType, data: buffer } = filePart;
       const contentType = (rawContentType || '').split(';')[0].trim().toLowerCase();
       const size = buffer.length;
+      
+      console.log('File info:', { filename, contentType, size });
 
       if (size > MAX_FILE_SIZE) {
+        console.log('ERROR: File too large');
         return res.status(413).json({ error: 'File too large (max 50 MB)' });
       }
       if (!ALLOWED_MIME_TYPES.has(contentType)) {
-        console.error('Blocked MIME type:', rawContentType, '→', contentType);
+        console.log('ERROR: MIME type not allowed:', contentType);
         return res.status(415).json({ error: 'File type not allowed' });
       }
 
       if (!supabaseAdmin) {
-        console.error('supabaseAdmin not initialized');
+        console.log('ERROR: supabaseAdmin not initialized');
         return res.status(500).json({ error: 'Internal server error' });
       }
       if (!r2Client) {
-        console.error('r2Client not initialized');
+        console.log('ERROR: r2Client not initialized');
         return res.status(500).json({ error: 'Storage service unavailable' });
       }
 
-      const { data: userData } = await supabaseAdmin
+      console.log('Getting user storage data...');
+      const { data: userData, error: userError } = await supabaseAdmin
         .from('users').select('storage_used, storage_total').eq('id', user.id).single();
+      
+      if (userError) {
+        console.log('ERROR getting user data:', userError);
+        return res.status(500).json({ error: 'Failed to get user storage info' });
+      }
 
       if (userData && userData.storage_used + size > userData.storage_total) {
+        console.log('ERROR: Storage limit exceeded');
         return res.status(400).json({ error: 'Storage limit exceeded' });
       }
 
       const { type: fileType, color: fileColor } = getFileType(contentType || '', filename);
       const ext = (filename.split('.').pop() || 'bin').replace(/[^a-zA-Z0-9]/g, '');
+      const { randomUUID } = await import('crypto');
       const key = `users/${user.id}/${randomUUID()}.${ext}`;
 
-      console.log('Uploading to R2:', key, 'type:', contentType, 'size:', size);
+      console.log('Uploading to R2...', { key, contentType, size });
       await r2Client.send(new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
         Key: key,
         Body: buffer,
         ContentType: contentType,
       }));
-      console.log('R2 upload OK');
+      console.log('R2 upload successful');
 
       const url = `${(process.env.R2_PUBLIC_URL || '').replace(/\/$/, '')}/${key}`;
 
+      console.log('Inserting into database...');
       const { data: newFile, error: fileError } = await supabaseAdmin
         .from('files')
         .insert([{
@@ -213,18 +233,26 @@ export default async function handler(req, res) {
         }])
         .select().single();
 
-      if (fileError) return res.status(400).json({ error: 'Upload recorded failed' });
+      if (fileError) {
+        console.log('ERROR inserting file record:', fileError);
+        return res.status(400).json({ error: 'Upload recorded failed' });
+      }
 
       if (userData) {
-        await supabaseAdmin
+        console.log('Updating user storage usage...');
+        const { error: updateError } = await supabaseAdmin
           .from('users')
           .update({ storage_used: (userData.storage_used || 0) + size })
           .eq('id', user.id);
+        if (updateError) {
+          console.log('WARNING: Failed to update storage usage:', updateError);
+        }
       }
 
+      console.log('=== UPLOAD REQUEST SUCCESS ===');
       return res.status(201).json({ message: 'File uploaded successfully', file: newFile });
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('=== UPLOAD ERROR ===', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
