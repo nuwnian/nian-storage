@@ -1,0 +1,114 @@
+/**
+ * Recommended npm scripts to add to package.json for running tests
+ * Add these to the "scripts" section of your package.json
+ */
+
+{
+  "scripts": {
+    // === E2E Testing Scripts ===
+    
+    // Run all tests in headless mode (CI/CD)
+    "test:e2e": "cypress run",
+    
+    // Open interactive Cypress test runner (local development)
+    "test:e2e:open": "cypress open",
+    
+    // Run individual test suites
+    "test:e2e:oauth": "cypress run --spec 'cypress/e2e/oauth-login.cy.js'",
+    "test:e2e:files": "cypress run --spec 'cypress/e2e/file-operations.cy.js'",
+    "test:e2e:session": "cypress run --spec 'cypress/e2e/session-management.cy.js'",
+    "test:e2e:integration": "cypress run --spec 'cypress/e2e/full-integration.cy.js'",
+    
+    // Run tests with recording and reporting
+    "test:e2e:record": "cypress run --record",
+    "test:e2e:report": "cypress run --reporter json > test-results.json",
+    
+    // Run tests in specific browser
+    "test:e2e:chrome": "cypress run --browser chrome",
+    "test:e2e:firefox": "cypress run --browser firefox",
+    "test:e2e:edge": "cypress run --browser edge",
+    
+    // Development workflow
+    "dev": "concurrently 'npm run start:frontend' 'npm run start:backend'",
+    "dev:test": "concurrently 'npm run start:frontend' 'npm run start:backend' 'npm run test:e2e:open'",
+    
+    // CI Scripts
+    "test:ci": "npm run test:e2e -- --exit",
+    "test:ci:parallel": "cypress-parallel -s cypress run -t 4",
+    
+    // Pre-commit hook to run tests before commit
+    "precommit": "npm run test:e2e -- --spec 'cypress/e2e/oauth-login.cy.js'"
+  },
+  
+  // === Dev Dependencies to Add ===
+  "devDependencies": {
+    "cypress": "^13.0.0",
+    // Optional: for better reporting
+    "cypress-multi-reporters": "^1.6.3",
+    "mocha-junit-reporter": "^2.1.1",
+    // Optional: for running tests in parallel
+    "cypress-parallel": "^0.14.0",
+    // Optional: for accessibility testing
+    "cypress-axe": "^1.2.3",
+    // Optional: for visual regression testing
+    "@cypress/schematic": "^2.5.1"
+  }
+}
+
+/**
+ * USAGE EXAMPLES
+ */
+
+// Run all tests and exit (for CI/CD)
+// npm run test:e2e
+
+// Open interactive test runner for development
+// npm run test:e2e:open
+
+// Run only OAuth tests
+// npm run test:e2e:oauth
+
+// Run only file operations tests
+// npm run test:e2e:files
+
+// Run only session management tests
+// npm run test:e2e:session
+
+// Run only integration tests
+// npm run test:e2e:integration
+
+// Run tests with Chrome browser
+// npm run test:e2e:chrome
+
+// Run tests with recording
+// npm run test:e2e:record
+
+// Run tests in CI environment
+// npm run test:ci
+
+// Run both frontend and backend with tests open
+// npm run dev:test
+
+// Run tests before committing (pre-commit hook)
+// npm run precommit
+
+/**
+ * SETUP INSTRUCTIONS
+ * 
+ * 1. Copy the scripts from this file into your package.json "scripts" section
+ * 
+ * 2. Install Cypress (if not already installed)
+ *    npm install --save-dev cypress
+ * 
+ * 3. Install optional dev dependencies (recommended)
+ *    npm install --save-dev cypress-multi-reporters mocha-junit-reporter
+ * 
+ * 4. Run tests with:
+ *    npm run test:e2e:open        (interactive mode)
+ *    npm run test:e2e             (headless mode)
+ *    npm run test:e2e:oauth       (specific test)
+ * 
+ * 5. For GitHub Actions CI/CD, use:
+ *    - npm run test:ci            (runs tests with exit code)
+ *    - npm run test:e2e:record    (records video)
+ */

@@ -1,12 +1,25 @@
 #!/usr/bin/env node
 /**
  * Test upload to debug backend logs
+ * 
+ * ⚠️ SECURITY NOTE:
+ * - Use environment variables for authentication tokens
+ * - Never hardcode JWT tokens or API keys
+ * - Set BEARER_TOKEN environment variable before running
  */
 import fs from 'fs';
 import path from 'path';
 
-const API_URL = 'http://localhost:5000';
-const BEARER_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvenZ0bW10cWdyc2R5YXV0aXN5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjg0NzYwMywiZXhwIjoyMDg4NDIzNjAzfQ.QUUggwFr_uPm2ebI9DgI2pbQMg4D4AjHwdJ1U5u0PLQ';
+const API_URL = process.env.API_URL || 'http://localhost:5000';
+const BEARER_TOKEN = process.env.BEARER_TOKEN;
+
+// Validate that token is provided
+if (!BEARER_TOKEN) {
+  console.error('❌ ERROR: BEARER_TOKEN environment variable is not set');
+  console.error('   Set it with: export BEARER_TOKEN="your_token"');
+  console.error('   Or: set BEARER_TOKEN=your_token (Windows)');
+  process.exit(1);
+}
 
 async function testUpload() {
   try {
@@ -20,7 +33,8 @@ async function testUpload() {
     
     console.log(`📝 Test content: "${testContent}"`);
     console.log(`📄 Filename: ${testFilename}`);
-    console.log(`🔑 Token: ${BEARER_TOKEN.substring(0, 30)}...`);
+    console.log(`🔑 Using Bearer token from BEARER_TOKEN env variable`);
+    console.log(`🌐 API URL: ${API_URL}`);
     
     // Create FormData manually
     const boundary = '----FormBoundary' + Date.now();
