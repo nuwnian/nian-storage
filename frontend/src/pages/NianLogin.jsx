@@ -23,10 +23,15 @@ export default function NianLogin(props) {
         if (access_token) {
           setLoading(true);
           try {
+            // ✅ FIX: Brief delay to allow Supabase to process tokens
+            // Supabase detectSessionInUrl will set these in localStorage
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Backend verification call
             const response = await apiCall('/api/auth/oauth/callback', {
               method: 'POST',
               token: access_token,
-              body: { access_token, refresh_token },
+              body: { refresh_token },  // Don't duplicate access_token
             });
 
             const data = await response.json();
@@ -45,8 +50,10 @@ export default function NianLogin(props) {
               username: data.user.name,
             });
 
-            // Call onLogin with user data and token
-            props.onLogin(data.user, data.session.access_token);
+            // ✅ FIX: Don't call props.onLogin() here
+            // Supabase listener in App.jsx will fire SIGNED_IN event
+            // which handles state updates through proper auth flow
+            console.log('[OAuth] Backend verified, Supabase listener will handle state update');
           } catch (err) {
             captureError(err, { 
               operation: 'oauth_callback',

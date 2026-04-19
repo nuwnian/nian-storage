@@ -108,20 +108,26 @@ export default function NianStorage(props) {
   const [txtContent, setTxtContent] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Fetch files on mount
+  // Fetch files on mount - wait for token to be available
   useEffect(() => {
-    console.log('[AUTH DEBUG] Component mounted - checking session status');
-    console.log('[AUTH DEBUG] token:', token ? '✅ Present' : '❌ Missing');
+    console.log('[STORAGE] Component mounted');
+    console.log('[STORAGE] token:', token ? '✅ Present' : '⏳ Waiting...');
+    console.log('[STORAGE] loading:', loading);
 
-    if (token) {
-      console.log('[AUTH DEBUG] Token passed via props - session ready');
+    // ✅ FIX: Only fetch if token is available AND loading is false
+    // This ensures Supabase auth has completed before making API calls
+    if (token && !loading) {
+      console.log('[STORAGE] ✅ Token ready - fetching files');
       fetchFiles();
       fetchUserData();
-    } else {
-      console.log('[AUTH DEBUG] No token in props - waiting for session restoration');
-      setLoading(false);
+    } else if (!token && loading) {
+      console.log('[STORAGE] ⏳ Waiting for session restoration...');
+      // Don't set loading=false - wait for parent component
+    } else if (!token && !loading) {
+      console.log('[STORAGE] ❌ No token available - show auth error');
+      setError('Session not available. Please log in again.');
     }
-  }, [token]);
+  }, [token, loading]);
 
   // Session restoration handled by parent component (App.jsx)
   // Token passed via props after Supabase restores session

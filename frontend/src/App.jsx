@@ -14,6 +14,7 @@ function App() {
   useEffect(() => {
     console.log('[AUTH] Setting up auth state listener');
     let fallbackTimer;
+    let isAuthStateHandled = false;
 
     if (!hasSupabaseConfig) {
       console.warn('[AUTH] Supabase env vars missing. Continuing without session restoration.');
@@ -24,14 +25,12 @@ function App() {
     
     // Fallback: if auth initialization stalls, still render login UI.
     fallbackTimer = setTimeout(() => {
-      setSessionRestored((current) => {
-        if (!current) {
-          console.warn('[AUTH] Initial session timed out, continuing with login screen');
-          setLoading(false);
-          return true;
-        }
-        return current;
-      });
+      if (!isAuthStateHandled) {
+        console.warn('[AUTH] Initial session timed out, continuing with login screen');
+        setSessionRestored(true);
+        setLoading(false);
+        isAuthStateHandled = true;
+      }
     }, 5000);
 
     // ✅ CRITICAL: onAuthStateChange fires when:
@@ -51,6 +50,7 @@ function App() {
         if (event === 'INITIAL_SESSION') {
           // INITIAL_SESSION fires after app load, session restoration complete
           console.log('[AUTH] ✅ Initial session check complete');
+          isAuthStateHandled = true;
           clearTimeout(fallbackTimer);
           setSessionRestored(true);
 
@@ -65,10 +65,15 @@ function App() {
           }
           setLoading(false);
         } else if (event === 'SIGNED_IN') {
+          // ✅ FIX: Set token immediately on SIGNED_IN (OAuth callback)
           console.log('[AUTH] ✅ User signed in');
+          isAuthStateHandled = true;
+          clearTimeout(fallbackTimer);
           setUser(session.user);
           setToken(session.access_token);
           setLoggedIn(true);
+          setSessionRestored(true);
+          setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           console.log('[AUTH] ⚠️ User signed out');
           setUser(null);
@@ -87,6 +92,7 @@ function App() {
       clearTimeout(fallbackTimer);
       setSessionRestored(true);
       setLoading(false);
+      isAuthStateHandled = true;
     }
 
     return () => {
