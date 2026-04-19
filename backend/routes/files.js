@@ -113,11 +113,20 @@ router.get('/:id', verifyUser, async (req, res) => {
 // This avoids requiring the browser to reach R2 directly
 router.get('/:id/serve', async (req, res) => {
   try {
+    console.log('[SERVE] Request for file:', req.params.id);
     const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    console.log('[SERVE] Token present:', !!token);
+    if (!token) {
+      console.log('[SERVE] ❌ No token');
+      return res.status(401).json({ error: 'No token provided' });
+    }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+    console.log('[SERVE] Auth result - user:', user?.id, 'error:', authError?.message);
+    if (authError || !user) {
+      console.log('[SERVE] ❌ Auth failed');
+      return res.status(401).json({ error: 'Invalid token' });
+    }
 
     const { data: file, error: fileError } = await supabaseAdmin
       .from('files')
@@ -126,42 +135,58 @@ router.get('/:id/serve', async (req, res) => {
       .eq('user_id', user.id)
       .single();
 
-    if (fileError || !file) return res.status(404).json({ error: 'File not found' });
+    console.log('[SERVE] File query - found:', !!file, 'error:', fileError?.message);
+    if (fileError || !file) {
+      console.log('[SERVE] ❌ File not found');
+      return res.status(404).json({ error: 'File not found' });
+    }
 
-    console.log('Serve file:', { fileId: req.params.id, fileName: file.name, fileUrl: file.url });
+    console.log('[SERVE] File:', { fileId: req.params.id, fileName: file.name, fileUrl: file.url });
 
     // Reconstruct R2 key from stored URL
     const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
     let key;
     
     if (!file.url) {
-      console.error('File has no URL stored');
+      console.error('[SERVE] ❌ File has no URL stored');
       return res.status(400).json({ error: 'File URL not found' });
     }
 
     // Extract key from URL
     if (publicBase && file.url.startsWith(publicBase)) {
       key = file.url.slice(publicBase.length + 1);
+      console.log('[SERVE] Key extracted from publicBase');
     } else if (file.url.includes('/users/')) {
       key = file.url.substring(file.url.indexOf('/users/'));
+      console.log('[SERVE] Key extracted from /users/');
     } else {
       // Fallback: assume file.url is already just the key
       key = file.url;
+      console.log('[SERVE] Using file.url as key (fallback)');
     }
 
-    console.log('Fetching from R2:', { bucket: process.env.R2_BUCKET_NAME, key });
+    console.log('[SERVE] Fetching from R2:', { bucket: process.env.R2_BUCKET_NAME, key, r2Endpoint: process.env.R2_ENDPOINT ? 'set' : 'missing' });
 
     const command = new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key });
     const r2Response = await r2Client.send(command);
+    console.log('[SERVE] ✅ Got R2 response');
 
     const bodyBytes = await r2Response.Body.transformToByteArray();
+    console.log('[SERVE] ✅ Read R2 body:', bodyBytes.length, 'bytes');
+    
     res.setHeader('Content-Type', r2Response.ContentType || 'application/octet-stream');
     res.setHeader('Content-Length', bodyBytes.length);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.end(Buffer.from(bodyBytes));
+    console.log('[SERVE] ✅ Response sent');
   } catch (error) {
-    console.error('Serve file error:', { message: error.message, stack: error.stack, code: error.code });
+    console.error('[SERVE] ❌ Exception:', { 
+      message: error.message, 
+      code: error.code,
+      name: error.name,
+      stack: error.stack.split('\n').slice(0, 3).join(' | ')
+    });
     res.status(500).json({ error: 'Failed to retrieve file: ' + error.message });
   }
 });

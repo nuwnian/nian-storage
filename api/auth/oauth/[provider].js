@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid OAuth provider' });
     }
 
-    const ALLOWED_REDIRECTS = ['https://nian-storage.vercel.app'];
+    const ALLOWED_REDIRECTS = ['https://nian-storage.vercel.app', 'http://localhost:3000'];
     const requestedOrigin = req.headers.origin || '';
     const redirectTo = ALLOWED_REDIRECTS.includes(requestedOrigin)
       ? requestedOrigin

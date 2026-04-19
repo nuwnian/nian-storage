@@ -29,24 +29,38 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    console.log('[SERVE] Token present:', !!token);
+    if (!token) {
+      console.log('[SERVE] ❌ No token provided');
+      return res.status(401).json({ error: 'No token provided' });
+    }
 
     if (!supabase || !supabaseAdmin) {
-      console.error('Supabase clients not initialized');
+      console.error('[SERVE] ❌ Supabase clients not initialized');
+      console.error('[SERVE] supabase:', !!supabase, 'supabaseAdmin:', !!supabaseAdmin);
       return res.status(500).json({ error: 'Internal server error' });
     }
     if (!r2Client) {
-      console.error('R2 client not initialized — check R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY env vars');
+      console.error('[SERVE] ❌ R2 client not initialized — check R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY env vars');
       return res.status(500).json({ error: 'Internal server error' });
     }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+    console.log('[SERVE] Auth check - user:', user?.id || 'null', 'error:', authError?.message || 'none');
+    if (authError || !user) {
+      console.log('[SERVE] ❌ Invalid token');
+      return res.status(401).json({ error: 'Invalid token' });
+    }
 
     const { id } = req.query;
+    console.log('[SERVE] Fetching file:', id);
     const { data: file, error: fileError } = await supabaseAdmin
       .from('files').select('*').eq('id', id).eq('user_id', user.id).single();
-    if (fileError || !file) return res.status(404).json({ error: 'File not found' });
+    if (fileError) console.log('[SERVE] File query error:', fileError.message);
+    if (!file) {
+      console.log('[SERVE] ❌ File not found or access denied');
+      return res.status(404).json({ error: 'File not found' });
+    }
 
     const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
     const key = publicBase && file.url.startsWith(publicBase)
@@ -55,20 +69,22 @@ export default async function handler(req, res) {
         ? file.url.substring(file.url.indexOf('/users/') + 1)
         : `users/${user.id}/${file.url.split('/').pop()}`;
 
+    console.log('[SERVE] R2 Key:', key);
     const command = new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key });
-    console.log('Fetching from R2, key:', key);
+    console.log('[SERVE] Fetching from R2...');
     const r2Response = await r2Client.send(command);
-    console.log('R2 response OK, ContentType:', r2Response.ContentType);
+    console.log('[SERVE] ✅ R2 response OK, ContentType:', r2Response.ContentType);
 
     const bodyBytes = await r2Response.Body.transformToByteArray();
     res.setHeader('Content-Type', r2Response.ContentType || 'application/octet-stream');
     res.setHeader('Content-Length', bodyBytes.length);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
     res.setHeader('Cache-Control', 'private, no-store');
-    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    // Removed Cross-Origin-Resource-Policy to avoid CORS conflicts
     res.end(Buffer.from(bodyBytes));
+    console.log('[SERVE] ✅ File served successfully');
   } catch (error) {
-    console.error('Serve file error:', error.name, '-', error.message, '| Code:', error.Code || error.$metadata?.httpStatusCode);
+    console.error('[SERVE] ❌ Error:', error.name, '-', error.message, '| Code:', error.Code || error.$metadata?.httpStatusCode);
     if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
   }
 }
