@@ -110,24 +110,16 @@ export default function NianStorage(props) {
 
   // Fetch files on mount - wait for token to be available
   useEffect(() => {
-    console.log('[STORAGE] Component mounted');
-    console.log('[STORAGE] token:', token ? '✅ Present' : '⏳ Waiting...');
-    console.log('[STORAGE] loading:', loading);
-
-    // ✅ FIX: Only fetch if token is available AND loading is false
-    // This ensures Supabase auth has completed before making API calls
-    if (token && !loading) {
-      console.log('[STORAGE] ✅ Token ready - fetching files');
+    // ✅ FIX: Fetch when token becomes available, regardless of loading state
+    // Once token is present, we can start fetching files immediately
+    if (token) {
+      setLoading(true); // Show loading state while fetching
       fetchFiles();
       fetchUserData();
-    } else if (!token && loading) {
-      console.log('[STORAGE] ⏳ Waiting for session restoration...');
-      // Don't set loading=false - wait for parent component
-    } else if (!token && !loading) {
-      console.log('[STORAGE] ❌ No token available - show auth error');
-      setError('Session not available. Please log in again.');
+    } else {
+      setLoading(true);
     }
-  }, [token, loading]);
+  }, [token]);
 
   // Session restoration handled by parent component (App.jsx)
   // Token passed via props after Supabase restores session
@@ -208,6 +200,23 @@ export default function NianStorage(props) {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [viewerModal.show, deleteModal.show]);
 
+  // Prevent browser's default file opening behavior on drag-drop
+  useEffect(() => {
+    const preventDefault = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    
+    // Prevent browser from opening files when dropped anywhere on the page
+    document.addEventListener('dragover', preventDefault);
+    document.addEventListener('drop', preventDefault);
+    
+    return () => {
+      document.removeEventListener('dragover', preventDefault);
+      document.removeEventListener('drop', preventDefault);
+    };
+  }, []);
+
   const fetchUserData = async () => {
     if (!token) {
       console.error('No token available');
@@ -251,20 +260,28 @@ export default function NianStorage(props) {
   // Compress image before upload
   const loadBlobUrls = (fileList) => {
     const imageFiles = fileList.filter(f => f.type === 'image' && !blobUrlsRef.current[f.id]);
+    console.log('[BLOB] Loading blobs for:', imageFiles.map(f => f.id));
+    
+    if (imageFiles.length === 0) return;
+    
     Promise.all(imageFiles.map(async (f) => {
       try {
         const url = await fetchBlobUrl(`/api/files/${f.id}/serve`, token);
+        console.log('[BLOB] Got URL for', f.id, ':', url?.substring(0, 50));
         if (url) {
           blobUrlsRef.current[f.id] = url;
-          setBlobUrls(prev => ({ ...prev, [f.id]: url }));
+          setBlobUrls(prev => {
+            console.log('[BLOB] Setting state for', f.id, 'prev keys:', Object.keys(prev));
+            return { ...prev, [f.id]: url };
+          });
         }
       } catch (err) {
+        console.error('[BLOB] Failed for', f.id, ':', err);
         captureError(err, { 
           operation: 'loadBlobUrls',
           fileId: f.id,
           fileName: f.name
         });
-        console.error(`Failed to load thumbnail for ${f.id}:`, err);
       }
     }));
   };
@@ -363,7 +380,6 @@ export default function NianStorage(props) {
           try {
             const data = JSON.parse(xhr.responseText);
             setUploadProgress({ uploading: true, progress: 100, fileName: file.name, phase: 'done' });
-            console.log('[UPLOAD XHR] ✅ Success:', xhr.status);
             resolve(data);
           } catch (err) {
             reject(new Error('Failed to parse response'));
@@ -371,10 +387,8 @@ export default function NianStorage(props) {
         } else {
           try {
             const data = JSON.parse(xhr.responseText);
-            console.log('[UPLOAD XHR] ❌ Error:', xhr.status, data);
             reject(new Error(data.error || `Upload failed with status ${xhr.status}`));
           } catch {
-            console.log('[UPLOAD XHR] ❌ Error:', xhr.status, xhr.responseText);
             reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText || xhr.statusText}`));
           }
         }
@@ -402,9 +416,6 @@ export default function NianStorage(props) {
       });
 
       // Open and send request
-      console.log('[UPLOAD XHR] Sending to:', `${API_URL}/api/files`);
-      console.log('[UPLOAD XHR] Authorization header:', token ? 'Bearer ' + token.substring(0, 20) + '...' : '❌ NO TOKEN');
-      
       xhr.open('POST', `${API_URL}/api/files`);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(formData);
@@ -414,12 +425,8 @@ export default function NianStorage(props) {
   const handleFileUpload = async (fileList) => {
     if (!fileList || fileList.length === 0) return;
     
-    console.log('[UPLOAD DEBUG] Token:', token ? '✅ Present' : '❌ Missing');
-    console.log('[UPLOAD DEBUG] Token value:', token?.substring(0, 30) + '...');
-    
     if (!token) {
       setError('You must be logged in to upload files');
-      console.log('[UPLOAD DEBUG] ❌ No token - upload blocked');
       return;
     }
     
@@ -443,15 +450,19 @@ export default function NianStorage(props) {
 
       try {
         setUploadProgress({ uploading: true, progress: 0, fileName: file.name });
-        console.log('[UPLOAD DEBUG] Uploading:', { fileName: file.name, size: file.size, type: file.type });
         const data = await uploadFileWithProgress(file, formData, token);
         
         // Add new file to list
-        const newFile = { ...data.file };
-        setFiles(prev => [newFile, ...prev]);
-        if (newFile.type === 'image') loadBlobUrls([newFile]);
-        // Refresh user data to update storage
-        fetchUserData();
+        if (data.file) {
+          const newFile = { ...data.file };
+          setFiles(prev => [newFile, ...prev]);
+          if (newFile.type === 'image') loadBlobUrls([newFile]);
+          // Refresh user data to update storage
+          fetchUserData();
+        } else {
+          console.error('[UPLOAD DEBUG] Response missing file property:', data);
+          setError('Upload succeeded but file data missing in response');
+        }
       } catch (err) {
         captureError(err, { 
           operation: 'handleFileUpload',
@@ -904,7 +915,7 @@ export default function NianStorage(props) {
             <div>
               <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-0.5px", color: "#1C2416" }}>My Storage</h1>
               <p style={{ fontSize: 13, color: "#6B7D5A", marginTop: 3 }}>
-                {loading ? 'Loading...' : `${files.length} files · ${usedGB} GB used`}
+                {uploadProgress.uploading ? `Uploading ${uploadProgress.fileName}...` : `${files.length} files · ${usedGB} GB used`}
               </p>
             </div>
             <div style={{ position: "relative" }}>
@@ -936,11 +947,25 @@ export default function NianStorage(props) {
           />
           <div
             className={`upload-zone ${dragging ? "drag" : ""}`}
-            onDragOver={e => { e.preventDefault(); if (token) setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={e => { 
-              e.preventDefault(); 
-              setDragging(false); 
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (token) setDragging(true);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (token) setDragging(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragging(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragging(false);
               if (token) handleFileUpload(e.dataTransfer.files);
             }}
             onClick={() => token && fileInputRef.current?.click()}
@@ -1068,7 +1093,7 @@ export default function NianStorage(props) {
                       </div>
                     )}
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1C2416" }}>{f.name}</div>
-                    <div style={{ fontSize: 11, color: "#6B7D5A" }}>{f.size} · {new Date(f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                    <div style={{ fontSize: 11, color: "#6B7D5A" }}>{f.size} · {new Date(f.created_at || new Date()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                   </div>
                   <button
                     onClick={(e) => {
@@ -1140,7 +1165,7 @@ export default function NianStorage(props) {
             </div>
           )}
 
-          {filtered.length === 0 && (
+          {!loading && filtered.length === 0 && (
             <div style={{ textAlign: "center", padding: "60px 20px", color: "#8BA370" }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="#8BA370" strokeWidth="2" style={{ width: 56, height: 56, marginBottom: 16, display: 'inline-block' }}>
                 <circle cx="11" cy="11" r="8" />

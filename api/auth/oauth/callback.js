@@ -13,8 +13,30 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    const { access_token, refresh_token } = req.body;
-    if (!access_token) return res.status(400).json({ error: 'Access token required' });
+    // Try to extract access_token from multiple sources
+    // 1. Authorization header (Bearer token)
+    let access_token = null;
+    const authHeader = req.headers.authorization || req.headers.Authorization || '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      access_token = authHeader.substring(7);
+    }
+    // 2. Request body as fallback
+    else if (req.body?.access_token) {
+      access_token = req.body.access_token;
+    }
+
+    console.log('[OAuth Callback]', {
+      hasAuthHeader: !!authHeader,
+      hasToken: !!access_token,
+      authHeaderType: authHeader ? typeof authHeader : 'none',
+      bodyToken: !!req.body?.access_token,
+    });
+
+    if (!access_token) {
+      return res.status(400).json({ error: 'Access token required', debug: { authHeader: authHeader ? 'present' : 'missing', body: req.body } });
+    }
+
+    const { refresh_token } = req.body;
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(access_token);
     if (userError || !user) return res.status(401).json({ error: 'Invalid token' });

@@ -11,6 +11,10 @@
     "dev:backend": "npm run dev --prefix backend",
     "build": "npm install --prefix frontend && npm run build --prefix frontend",
     "start": "npm start --prefix backend",
+    "test": "npm test --prefix backend && npm test --prefix frontend",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "lint:fix": "npm run lint:fix --prefix backend && npm run lint:fix --prefix frontend",
+    "format": "npm run format --prefix backend && npm run format --prefix frontend",
     "kill-ports": "powershell -Command \"$p5000 = Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | Select -First 1 -ExpandProperty OwningProcess; if($p5000){Stop-Process -Id $p5000 -Force}; $p3000 = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select -First 1 -ExpandProperty OwningProcess; if($p3000){Stop-Process -Id $p3000 -Force}; Start-Sleep -Seconds 1\"",
     "restart": "npm run kill-ports && npm run dev"
   },
@@ -29,6 +33,7 @@
     "@supabase/supabase-js": "^2.98.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "cypress": "^15.14.0"
   }
 }

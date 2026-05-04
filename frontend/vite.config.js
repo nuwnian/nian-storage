@@ -8,8 +8,8 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     headers: {
-      // Relaxed CSP policy to allow app to function
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://localhost:5000 http://localhost:* ws://localhost:*; font-src 'self' data:;",
+      // CSP policy - allows development flexibility with external services
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; connect-src 'self' http://localhost:5000 http://localhost:* ws://localhost:* https://*.sentry.io https://*.supabase.co; font-src 'self' data: https://fonts.gstatic.com;",
     },
     fs: {
       // Restrict file system access to prevent arbitrary file retrieval
@@ -22,21 +22,29 @@ export default defineConfig({
         '*.pem',
         '.git',
         '.ssh',
-        'node_modules',
         '/etc/passwd',
         '/etc/shadow'
       ],
       allow: [
-        'src/',
-        'public/',
-        'node_modules/@vite',
-        'node_modules/vite'
+        // Allow serving from project root during dev
+        process.cwd(),
       ]
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: process.env.VITE_API_URL || 'http://localhost:5000',
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true
       }
     }
   }

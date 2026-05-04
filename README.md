@@ -160,7 +160,8 @@ npm start
 
 - [x] ~~Add database integration~~ ✅ Supabase PostgreSQL
 - [x] ~~Add authentication~~ ✅ Supabase Auth
-- [ ] Implement actual file upload to Supabase Storage
+- [x] ~~Implement actual file upload to Cloudflare R2~~ ✅ Complete
+- [x] ~~Add unit testing~~ ✅ Jest with 24 passing tests
 - [ ] Add file preview functionality
 - [ ] Implement file sharing features
 - [ ] Add user profile management page

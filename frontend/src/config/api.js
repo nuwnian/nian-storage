@@ -50,6 +50,16 @@ export async function apiCall(endpoint, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // Debug logging: show whether Authorization header is present (redact actual token)
+  try {
+    const hasAuthHeader = !!headers['Authorization'];
+    const authHeaderLength = hasAuthHeader ? headers['Authorization'].length : 0;
+    const safeHeaders = { ...headers, Authorization: hasAuthHeader ? `REDACTED(${authHeaderLength} chars)` : undefined };
+    console.log(`[apiCall] ${method} ${url} - hasToken:${!!token} hasAuthHeader:${hasAuthHeader} authHeaderLength:${authHeaderLength}`, safeHeaders);
+  } catch (err) {
+    console.log('[apiCall] Error logging headers', err);
+  }
+
   const fetchOptions = {
     method,
     headers,

@@ -15,10 +15,18 @@ export default function NianLogin(props) {
   useEffect(() => {
     const handleOAuthCallback = async () => {
       const hash = window.location.hash;
+      console.log('[OAuth] Hash present:', !!hash, 'Hash content:', hash.substring(0, 50));
+      
       if (hash) {
         const params = new URLSearchParams(hash.substring(1));
         const access_token = params.get('access_token');
         const refresh_token = params.get('refresh_token');
+
+        console.log('[OAuth] Extracted tokens:', {
+          hasAccessToken: !!access_token,
+          accessTokenLength: access_token?.length,
+          hasRefreshToken: !!refresh_token,
+        });
 
         if (access_token) {
           setLoading(true);
@@ -28,6 +36,7 @@ export default function NianLogin(props) {
             await new Promise(resolve => setTimeout(resolve, 100));
 
             // Backend verification call
+            console.log('[OAuth] Calling backend with token...');
             const response = await apiCall('/api/auth/oauth/callback', {
               method: 'POST',
               token: access_token,
@@ -35,6 +44,13 @@ export default function NianLogin(props) {
             });
 
             const data = await response.json();
+
+            console.log('[OAuth] Backend response:', {
+              status: response.status,
+              ok: response.ok,
+              hasError: !!data.error,
+              error: data.error,
+            });
 
             if (!response.ok) {
               throw new Error(data.error || 'OAuth authentication failed');
@@ -50,10 +66,10 @@ export default function NianLogin(props) {
               username: data.user.name,
             });
 
-            // ✅ FIX: Don't call props.onLogin() here
-            // Supabase listener in App.jsx will fire SIGNED_IN event
-            // which handles state updates through proper auth flow
-            console.log('[OAuth] Backend verified, Supabase listener will handle state update');
+            // ✅ Call onLogin to update app state
+            props.onLogin(data.user, data.session.access_token);
+            
+            console.log('[OAuth] ✅ Login successful, user:', data.user.email);
           } catch (err) {
             captureError(err, { 
               operation: 'oauth_callback',
@@ -380,6 +396,42 @@ export default function NianLogin(props) {
               <button className="submit-btn" onClick={handleSubmit} disabled={loading} style={{ marginTop: 8 }}>
                 {loading ? <span className="spinner" /> : mode === "login" ? "Sign In" : "Create Account"}
               </button>
+
+              {/* Divider */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0", color: "#8BA370", fontSize: 12 }}>
+                <div style={{ flex: 1, height: 1, background: "#C4D4B0" }} />
+                <span>or continue with</span>
+                <div style={{ flex: 1, height: 1, background: "#C4D4B0" }} />
+              </div>
+
+              {/* OAuth Buttons */}
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  className="social-btn"
+                  onClick={() => handleOAuth('google')}
+                  disabled={loading}
+                  style={{ flex: 1 }}
+                  title="Sign in with Google"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" style={{ display: "inline" }}>
+                    <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="14" fill="#4285F4" fontWeight="bold" transform="translate(-24, 0)">G</text>
+                    <circle cx="12" cy="12" r="11" fill="none" stroke="#DDD" strokeWidth="0.5"/>
+                  </svg>
+                  Google
+                </button>
+                <button
+                  className="social-btn"
+                  onClick={() => handleOAuth('github')}
+                  disabled={loading}
+                  style={{ flex: 1 }}
+                  title="Sign in with GitHub"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="#1C2416">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                  </svg>
+                  GitHub
+                </button>
+              </div>
             </div>
           </div>
         </div>
