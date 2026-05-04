@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "npm ci --prefix frontend && npm run build --prefix frontend",
+  "buildCommand": "npm install --prefix frontend && npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
-  "installCommand": "npm ci --prefix frontend && npm ci --prefix backend",
+  "installCommand": "npm install --prefix frontend && npm install --prefix backend",
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60
