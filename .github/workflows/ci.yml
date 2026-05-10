@@ -99,5 +99,5 @@ jobs:
         working-directory: frontend
         run: |
           npm install -g vercel
-          vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
+          vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }} --yes --org-id ${{ secrets.VERCEL_ORG_ID }} --project-id ${{ secrets.VERCEL_PROJECT_ID }}
 
