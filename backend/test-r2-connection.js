@@ -7,8 +7,9 @@
 
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 const config = {
   R2_ENDPOINT: process.env.R2_ENDPOINT,

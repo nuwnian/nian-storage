@@ -1,0 +1,454 @@
+﻿
+> nian-storage@1.0.0 test
+> npm test --prefix backend && npm test --prefix frontend
+
+
+> nian-storage-backend@1.0.0 test
+> jest
+
+node.exe : PASS services/supabase-storage.test.js
+At line:1 char:1
++ & "C:\Users\User\AppData\Local\fnm_multishells\17708_1778393355139/no ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS services/supabase-storage.te 
+   st.js:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  ΓùÅ Console
+
+    console.log
+      [SUPABASE STORAGE] Uploading file: {
+        fileKey: 'users/123/1778393600386-test.txt',
+        size: 17,
+        mimeType: 'text/plain'
+      }
+
+      at log (services/supabase-storage.js:19:13)
+
+    console.log
+      [SUPABASE STORAGE] Γ£à Upload successful: {
+        key: 'users/123/1778393600386-test.txt',
+        url: 'https://example.supabase.co/storage/v1/object/public/user-files/u
+sers/123/1234567890-test.txt'
+      }
+
+      at log (services/supabase-storage.js:40:13)
+
+    console.log
+      [SUPABASE STORAGE] Uploading file: {
+        fileKey: 'users/123/1778393600398-test.txt',
+        size: 17,
+        mimeType: 'text/plain'
+      }
+
+      at log (services/supabase-storage.js:19:13)
+
+    console.error
+      [SUPABASE STORAGE] Upload failed: { message: 'Storage quota exceeded' }
+
+    [0m [90m 29 |[39m
+     [90m 30 |[39m     [36mif[39m (error) {
+    [31m[1m>[22m[39m[90m 31 |[39m       
+console[33m.[39merror([32m'[SUPABASE STORAGE] Upload 
+failed:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 32 |[39m       [36mthrow[39m [36mnew[39m 
+[33mError[39m([32m`Failed to upload file to storage: 
+${error.message}`[39m)[33m;[39m
+     [90m 33 |[39m     }
+     [90m 34 |[39m[0m
+
+      at error (services/supabase-storage.js:31:15)
+      at Object.<anonymous> (services/supabase-storage.test.js:66:7)
+
+    console.error
+      [SUPABASE STORAGE] Exception during upload: Error: Failed to upload file 
+to storage: Storage quota exceeded
+          at uploadToSupabaseStorage (D:\nian 
+storage\backend\services\supabase-storage.js:32:13)
+          at processTicksAndRejections 
+(node:internal/process/task_queues:103:5)
+          at Object.<anonymous> (D:\nian 
+storage\backend\services\supabase-storage.test.js:66:7)
+
+    [0m [90m 45 |[39m     }[33m;[39m
+     [90m 46 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 47 |[39m     
+console[33m.[39merror([32m'[SUPABASE STORAGE] Exception during 
+upload:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 48 |[39m     [36mthrow[39m error[33m;[39m
+     [90m 49 |[39m   }
+     [90m 50 |[39m }[33m;[39m[0m
+
+      at error (services/supabase-storage.js:47:13)
+      at Object.<anonymous> (services/supabase-storage.test.js:66:7)
+
+    console.log
+      [SUPABASE STORAGE] Uploading file: {
+        fileKey: 'users/123/1778393600420-test.txt',
+        size: 4,
+        mimeType: 'text/plain'
+      }
+
+      at log (services/supabase-storage.js:19:13)
+
+    console.log
+      [SUPABASE STORAGE] Γ£à Upload successful: {
+        key: 'users/123/1778393600420-test.txt',
+        url: 'https://example.com/users/123/timestamp-test.txt'
+      }
+
+      at log (services/supabase-storage.js:40:13)
+
+    console.log
+      [SUPABASE STORAGE] Downloading file: { fileKey: 'users/123/test.txt' }
+
+      at log (services/supabase-storage.js:59:13)
+
+    console.log
+      [SUPABASE STORAGE] Γ£à Download successful: { key: 'users/123/test.txt', 
+size: undefined }
+
+      at log (services/supabase-storage.js:70:13)
+
+    console.log
+      [SUPABASE STORAGE] Downloading file: { fileKey: 'users/123/missing.txt' }
+
+      at log (services/supabase-storage.js:59:13)
+
+    console.error
+      [SUPABASE STORAGE] Download failed: { message: 'File not found' }
+
+    [0m [90m 64 |[39m
+     [90m 65 |[39m     [36mif[39m (error) {
+    [31m[1m>[22m[39m[90m 66 |[39m       
+console[33m.[39merror([32m'[SUPABASE STORAGE] Download 
+failed:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 67 |[39m       [36mthrow[39m [36mnew[39m 
+[33mError[39m([32m`Failed to download file: 
+${error.message}`[39m)[33m;[39m
+     [90m 68 |[39m     }
+     [90m 69 |[39m[0m
+
+      at error (services/supabase-storage.js:66:15)
+      at Object.<anonymous> (services/supabase-storage.test.js:122:7)
+
+    console.error
+      [SUPABASE STORAGE] Exception during download: Error: Failed to download 
+file: File not found
+          at downloadFromSupabaseStorage (D:\nian 
+storage\backend\services\supabase-storage.js:67:13)
+          at processTicksAndRejections 
+(node:internal/process/task_queues:103:5)
+          at Object.<anonymous> (D:\nian 
+storage\backend\services\supabase-storage.test.js:122:7)
+
+    [0m [90m 72 |[39m     [36mreturn[39m data[33m;[39m
+     [90m 73 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 74 |[39m     
+console[33m.[39merror([32m'[SUPABASE STORAGE] Exception during 
+download:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 75 |[39m     [36mthrow[39m error[33m;[39m
+     [90m 76 |[39m   }
+     [90m 77 |[39m }[33m;[39m[0m
+
+      at error (services/supabase-storage.js:74:13)
+      at Object.<anonymous> (services/supabase-storage.test.js:122:7)
+
+    console.log
+      [SUPABASE STORAGE] Deleting file: { fileKey: 'users/123/test.txt' }
+
+      at log (services/supabase-storage.js:111:13)
+
+    console.log
+      [SUPABASE STORAGE] Γ£à Delete successful: { key: 'users/123/test.txt' }
+
+      at log (services/supabase-storage.js:122:13)
+
+    console.log
+      [SUPABASE STORAGE] Deleting file: { fileKey: 'users/123/missing.txt' }
+
+      at log (services/supabase-storage.js:111:13)
+
+    console.error
+      [SUPABASE STORAGE] Delete failed: { message: 'File not found' }
+
+    [0m [90m 116 |[39m
+     [90m 117 |[39m     [36mif[39m (error) {
+    [31m[1m>[22m[39m[90m 118 |[39m       
+console[33m.[39merror([32m'[SUPABASE STORAGE] Delete 
+failed:'[39m[33m,[39m error)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 119 |[39m       [36mthrow[39m [36mnew[39m 
+[33mError[39m([32m`Failed to delete file: ${error.message}`[39m)[33m;[39m
+     [90m 120 |[39m     }
+     [90m 121 |[39m[0m
+
+      at error (services/supabase-storage.js:118:15)
+      at Object.<anonymous> (services/supabase-storage.test.js:155:7)
+
+    console.error
+      [SUPABASE STORAGE] Exception during delete: Error: Failed to delete 
+file: File not found
+          at deleteFromSupabaseStorage (D:\nian 
+storage\backend\services\supabase-storage.js:119:13)
+          at processTicksAndRejections 
+(node:internal/process/task_queues:103:5)
+          at Object.<anonymous> (D:\nian 
+storage\backend\services\supabase-storage.test.js:155:7)
+
+    [0m [90m 122 |[39m     console[33m.[39mlog([32m'[SUPABASE STORAGE] 
+Γ£à Delete successful:'[39m[33m,[39m { key[33m:[39m fileKey })[33m;[39m
+     [90m 123 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 124 |[39m     
+console[33m.[39merror([32m'[SUPABASE STORAGE] Exception during 
+delete:'[39m[33m,[39m error)[33m;[39m
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 125 |[39m     [36mthrow[39m error[33m;[39m
+     [90m 126 |[39m   }
+     [90m 127 |[39m }[33m;[39m[0m
+
+      at error (services/supabase-storage.js:124:13)
+      at Object.<anonymous> (services/supabase-storage.test.js:155:7)
+
+    console.log
+      [SUPABASE STORAGE] Deleting file: { fileKey: 'users/123/test1.txt' }
+
+      at log (services/supabase-storage.js:111:13)
+
+    console.log
+      [SUPABASE STORAGE] Γ£à Delete successful: { key: 'users/123/test1.txt' }
+
+      at log (services/supabase-storage.js:122:13)
+
+    console.log
+      [SUPABASE STORAGE] Deleting file: { fileKey: 'users/123/test2.txt' }
+
+      at log (services/supabase-storage.js:111:13)
+
+    console.log
+      [SUPABASE STORAGE] Γ£à Delete successful: { key: 'users/123/test2.txt' }
+
+      at log (services/supabase-storage.js:122:13)
+
+PASS routes/files.test.js
+  ΓùÅ Console
+
+    console.log
+      Γ£à R2 configuration loaded:
+
+      at log (config/r2.js:24:11)
+
+    console.log
+         Endpoint: 
+https://3d94c104569308dcd57a6c5c20773de2.r2.cloudflarestorage.com
+
+      at log (config/r2.js:25:11)
+
+    console.log
+         Bucket: nian-storage
+
+      at log (config/r2.js:26:11)
+
+    console.log
+         Access Key ID: 6638...
+
+      at log (config/r2.js:27:11)
+
+    console.log
+         Secret Key Length: 64 chars
+
+      at log (config/r2.js:28:11)
+
+    console.log
+      [AUTH] No token provided in request
+
+      at log (routes/files.js:24:15)
+
+    console.error
+      [AUTH] Token verification failed: Invalid token
+
+    [0m [90m 30 |[39m
+     [90m 31 |[39m     [36mif[39m (error [33m||[39m [33m![39muser) {
+    [31m[1m>[22m[39m[90m 32 |[39m       
+console[33m.[39merror([32m'[AUTH] Token verification 
+failed:'[39m[33m,[39m error[33m?[39m[33m.[39mmessage [33m||[39m 
+[32m'No user data'[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 33 |[39m       [36mreturn[39m 
+res[33m.[39mstatus([35m401[39m)[33m.[39mjson({ error[33m:[39m 
+[32m'Invalid token: '[39m [33m+[39m (error[33m?[39m[33m.[39mmessage 
+[33m||[39m [32m'User not found'[39m) })[33m;[39m
+     [90m 34 |[39m     }
+     [90m 35 |[39m[0m
+
+      at error (routes/files.js:32:15)
+
+    console.log
+      [SERVE] Request for file: file-123
+
+      at log (routes/files.js:116:13)
+
+    console.log
+      [SERVE] Token present: false
+
+      at log (routes/files.js:118:13)
+
+    console.log
+      [SERVE] Γ¥î No token
+
+      at log (routes/files.js:120:15)
+
+    console.log
+      [SERVE] Request for file: file-123
+
+      at log (routes/files.js:116:13)
+
+    console.log
+      [SERVE] Token present: true
+
+      at log (routes/files.js:118:13)
+
+    console.log
+      [SERVE] Auth result - user: undefined error: Invalid token
+
+      at log (routes/files.js:125:13)
+
+    console.log
+      [SERVE] Γ¥î Auth failed
+
+      at log (routes/files.js:127:15)
+
+    console.log
+      [AUTH] No token provided in request
+
+      at log (routes/files.js:24:15)
+
+    console.error
+      [AUTH] Token verification failed: Invalid token
+
+    [0m [90m 30 |[39m
+     [90m 31 |[39m     [36mif[39m (error [33m||[39m [33m![39muser) {
+    [31m[1m>[22m[39m[90m 32 |[39m       
+console[33m.[39merror([32m'[AUTH] Token verification 
+failed:'[39m[33m,[39m error[33m?[39m[33m.[39mmessage [33m||[39m 
+[32m'No user data'[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 33 |[39m       [36mreturn[39m 
+res[33m.[39mstatus([35m401[39m)[33m.[39mjson({ error[33m:[39m 
+[32m'Invalid token: '[39m [33m+[39m (error[33m?[39m[33m.[39mmessage 
+[33m||[39m [32m'User not found'[39m) })[33m;[39m
+     [90m 34 |[39m     }
+     [90m 35 |[39m[0m
+
+      at error (routes/files.js:32:15)
+
+    console.log
+      [AUTH] No token provided in request
+
+      at log (routes/files.js:24:15)
+
+    console.error
+      [AUTH] Token verification failed: Invalid token
+
+    [0m [90m 30 |[39m
+     [90m 31 |[39m     [36mif[39m (error [33m||[39m [33m![39muser) {
+    [31m[1m>[22m[39m[90m 32 |[39m       
+console[33m.[39merror([32m'[AUTH] Token verification 
+failed:'[39m[33m,[39m error[33m?[39m[33m.[39mmessage [33m||[39m 
+[32m'No user data'[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 33 |[39m       [36mreturn[39m 
+res[33m.[39mstatus([35m401[39m)[33m.[39mjson({ error[33m:[39m 
+[32m'Invalid token: '[39m [33m+[39m (error[33m?[39m[33m.[39mmessage 
+[33m||[39m [32m'User not found'[39m) })[33m;[39m
+     [90m 34 |[39m     }
+     [90m 35 |[39m[0m
+
+      at error (routes/files.js:32:15)
+
+    console.log
+      [AUTH] No token provided in request
+
+      at log (routes/files.js:24:15)
+
+    console.error
+      [AUTH] Token verification failed: Invalid token
+
+    [0m [90m 30 |[39m
+     [90m 31 |[39m     [36mif[39m (error [33m||[39m [33m![39muser) {
+    [31m[1m>[22m[39m[90m 32 |[39m       
+console[33m.[39merror([32m'[AUTH] Token verification 
+failed:'[39m[33m,[39m error[33m?[39m[33m.[39mmessage [33m||[39m 
+[32m'No user data'[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 33 |[39m       [36mreturn[39m 
+res[33m.[39mstatus([35m401[39m)[33m.[39mjson({ error[33m:[39m 
+[32m'Invalid token: '[39m [33m+[39m (error[33m?[39m[33m.[39mmessage 
+[33m||[39m [32m'User not found'[39m) })[33m;[39m
+     [90m 34 |[39m     }
+     [90m 35 |[39m[0m
+
+      at error (routes/files.js:32:15)
+
+    console.log
+      [AUTH] Γ£à Authenticated user: 123
+
+      at log (routes/files.js:38:13)
+
+    console.log
+      
+      ========== UPLOAD REQUEST ==========
+
+      at log (routes/files.js:247:13)
+
+    console.log
+      [UPLOAD] User ID: 123
+
+      at log (routes/files.js:248:13)
+
+    console.log
+      [UPLOAD] Email: test@example.com
+
+      at log (routes/files.js:249:13)
+
+    console.log
+      [UPLOAD] Request headers: { 'content-type': undefined, authorization: 
+'Bearer valid-token...' }
+
+      at log (routes/files.js:250:13)
+
+    console.log
+      [UPLOAD] Γ¥î ERROR: No file received by multer
+
+      at log (routes/files.js:256:15)
+
+    console.log
+      [UPLOAD] req.file: undefined
+
+      at log (routes/files.js:257:15)
+
+    console.log
+      [UPLOAD] req.files: undefined
+
+      at log (routes/files.js:258:15)
+
+    console.log
+      [UPLOAD] req.body: {}
+
+      at log (routes/files.js:259:15)
+
+
+Test Suites: 2 passed, 2 total
+Tests:       24 passed, 24 total
+Snapshots:   0 total
+Time:        5.104 s
+Ran all test suites.
+
+> nian-storage-frontend@1.0.0 test
+> echo 'Tests pending - add your test suite here' && exit 0
+
+'Tests pending - add your test suite here' 

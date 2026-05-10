@@ -1,7 +1,8 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 // Validate R2 configuration
 const validateR2Config = () => {
