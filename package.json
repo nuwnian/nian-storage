@@ -33,7 +33,6 @@
     "@supabase/supabase-js": "^2.98.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "cypress": "^15.14.0"
+    "concurrently": "^8.2.2"
   }
 }

@@ -12,3 +12,9 @@ dist/
 # Logs
 *.log
 .vercel
+
+# Playwright test artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
