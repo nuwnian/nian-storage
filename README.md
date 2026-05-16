@@ -1,202 +1,137 @@
 # Nian Storage 🌿
 
-A beautiful, full-stack personal cloud storage application with a clean green aesthetic design.
+A full-stack personal cloud storage application with a beautiful green aesthetic and smooth user experience.
 
-## 🎨 Features
+## ✨ Features
 
-- **Beautiful UI**: Modern, clean interface with a calming green color palette
-- **User Authentication**: Login and registration pages with smooth transitions
-- **File Management**: 
-  - View files in grid or list layout
-  - Filter by file type (Images, Videos, Documents)
-  - Search functionality
-  - Drag & drop upload zone
-- **Storage Tracking**: Visual storage usage indicator
-- **Responsive Design**: Works on all device sizes
+- **Clean UI** - Modern interface with calming green color palette
+- **Authentication** - Secure login and registration with Supabase Auth
+- **File Management** - Upload, organize, filter, and search files
+- **Responsive Design** - Works seamlessly on all devices
 
-## 🏗️ Architecture
+## 🏗️ Tech Stack
 
-This is a full-stack application with:
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18 + Vite |
+| **Backend** | Node.js + Express.js |
+| **Database** | Supabase (PostgreSQL) |
+| **File Storage** | Cloudflare R2 |
+| **Authentication** | Supabase Auth |
 
-### Frontend
-- **Framework**: React 18
-- **Build Tool**: Vite
-- **Styling**: Inline styles with Google Fonts (DM Sans & Syne)
-- **State Management**: React useState hooks
+## 🚀 Quick Start
 
-### Backend
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **API Structure**: RESTful API
-- **Routes**:
-  - `/api/auth` - Authentication endpoints (register, login, logout)
-  - `/api/files` - File management endpoints (CRUD operations)
+### Prerequisites
+- Node.js v18+
+- Supabase account
+- Cloudflare R2 account (for file storage)
+
+### Setup
+
+```bash
+# Install dependencies
+npm run install-all
+
+# Configure environment variables
+# Copy backend/.env.example to backend/.env and add:
+# - Supabase: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+# - Cloudflare R2: R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL
+```
+
+### Development
+
+Run both servers with one command:
+```bash
+npm run dev
+```
+
+Or run separately:
+```bash
+npm run dev:backend  # http://localhost:5000
+npm run dev:frontend # http://localhost:3000
+```
+
+### Production Build
+
+```bash
+npm run build
+npm start
+```
 
 ## 📁 Project Structure
 
 ```
-nian storage/
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
-│   │   │   ├── NianLogin.jsx      # Login/Register page
-│   │   │   └── NianStorage.jsx    # Main storage dashboard
-│   │   ├── App.jsx                # Root component with auth state
-│   │   └── main.jsx               # Entry point
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.js
-│   └── jsconfig.json
+│   │   │   ├── NianLogin.jsx       # Auth page
+│   │   │   └── NianStorage.jsx     # Main dashboard
+│   │   └── config/                 # API & service configs
+│   └── tests/e2e/                  # Playwright tests
 │
 ├── backend/
-│   ├── routes/
-│   │   ├── auth.js                # Authentication routes
-│   │   └── files.js               # File management routes
-│   ├── server.js                  # Express server setup
-│   ├── package.json
-│   └── .env.example               # Environment variables template
+│   ├── routes/                     # API endpoints
+│   ├── services/                   # Business logic
+│   ├── config/                     # Service configurations
+│   └── server.js                   # Express server
 │
-└── README.md
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js (v18 or higher)
-- npm or yarn
-- Supabase account (free tier is fine)
-
-### Installation
-
-1. **Clone the repository** (or navigate to the project folder)
-
-```bash
-cd "d:\nian storage"
-```
-
-2. **Set up Supabase Database**
-
-Follow the detailed guide in [SUPABASE_SETUP.md](SUPABASE_SETUP.md) to:
-- Create a Supabase project
-- Set up database tables
-- Get your credentials
-
-3. **Install Frontend Dependencies**
-
-```bash
-cd frontend
-npm install
-```
-
-4. **Install Backend Dependencies**
-
-```bash
-cd ../backend
-npm install
-```
-
-5. **Configure Environment Variables**
-
-```bash
-# In the backend folder
-cd backend
-# Edit .env and add your Supabase credentials
-# SUPABASE_URL and SUPABASE_ANON_KEY
-```
-
-### Running the Application
-
-You'll need two terminal windows:
-
-**Terminal 1 - Backend Server:**
-```bash
-cd backend
-npm run dev
-```
-The backend will run on `http://localhost:5000`
-
-**Terminal 2 - Frontend Development Server:**
-```bash
-cd frontend
-npm run dev
-```
-The frontend will run on `http://localhost:3000`
-
-### Building for Production
-
-**Frontend:**
-```bash
-cd frontend
-npm run build
-```
-The build output will be in `frontend/dist/`
-
-**Backend:**
-```bash
-cd backend
-npm start
+└── api/                            # Vercel serverless API
 ```
 
 ## 🔌 API Endpoints
 
-### Authentication (Supabase Auth)
+### Auth
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login user
-- `GET /api/auth/me` - Get current user (requires token)
-- `POST /api/auth/logout` - Logout user
+- `GET /api/auth/me` - Get current user
+- `POST /api/auth/logout` - Logout
 
-### Files (Protected Routes)
-- `GET /api/files` - Get all files for logged-in user (with optional filters)
-- `GET /api/files/:id` - Get single file
-- `POST /api/files/upload` - Upload new file metadata
+### Files (requires Bearer token)
+- `GET /api/files` - List files
+- `GET /api/files/:id` - Get file details
+- `POST /api/files/upload` - Upload file
 - `DELETE /api/files/:id` - Delete file
 
-**Note:** All file endpoints require Bearer token in Authorization header.
+## 💾 Storage Architecture
 
-## 🎯 Future Enhancements
+- **Metadata**: Stored in Supabase PostgreSQL (filename, type, size, upload date)
+- **File Data**: Stored in Cloudflare R2 for reliable, scalable object storage
+- **Access**: Files are proxied through `/api/files/:id/serve` endpoint for secure access
 
-- [x] ~~Add database integration~~ ✅ Supabase PostgreSQL
-- [x] ~~Add authentication~~ ✅ Supabase Auth
-- [x] ~~Implement actual file upload to Cloudflare R2~~ ✅ Complete
-- [x] ~~Add unit testing~~ ✅ Jest with 24 passing tests
-- [ ] Add file preview functionality
-- [ ] Implement file sharing features
-- [ ] Add user profile management page
-- [ ] Implement folder organization
-- [ ] Add file versioning
-- [ ] Mobile app version
-- [ ] Real-time file sync
+## 🧪 Testing
+
+```bash
+# Backend unit tests (Jest)
+npm test --prefix backend
+npm run test:watch --prefix backend
+npm run test:coverage --prefix backend
+
+# Frontend E2E tests (Playwright)
+npm test --prefix frontend
+npm run test:ui --prefix frontend
+npm run test:debug --prefix frontend
+```
 
 ## 🎨 Design System
 
-**Color Palette:**
-- Primary Background: `#E8EDE0`
-- Secondary Background: `#D4DEC8`
-- Card Background: `#DDE8D2`
-- Primary Text: `#1C2416`
-- Secondary Text: `#6B7D5A`
+**Colors:**
+- Background: `#E8EDE0`
+- Card: `#DDE8D2`
+- Text: `#1C2416`
 - Accent: `#E07A2F`
-- Green Gradient: `#4A7C3F` → `#7BA05B`
 
-**Typography:**
-- Headings: Syne (Bold, ExtraBold)
-- Body: DM Sans (Regular, Medium, SemiBold)
+**Fonts:**
+- Headings: Syne
+- Body: DM Sans
 
 ## 📝 License
 
-MIT License - feel free to use this project for learning or personal use.
+MIT - Feel free to use for learning or personal projects.
 
-## 👨‍💻 Development Notes
+## 🔗 Additional Resources
 
-This project was built with a focus on:
-- Clean, readable code
-- Component reusability
-- Smooth animations and transitions
-- Accessible UI components
-- RESTful API design principles
+- [Supabase Setup Guide](SUPABASE_SETUP.md)
+- [Testing Guide](backend/TESTING.md)
 
 ---
 

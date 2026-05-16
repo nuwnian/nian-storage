@@ -107,6 +107,7 @@ export default function NianStorage(props) {
   const blobUrlsRef = useRef({});
   const [txtContent, setTxtContent] = useState(null);
   const fileInputRef = useRef(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Fetch files on mount - wait for token to be available
   useEffect(() => {
@@ -757,43 +758,116 @@ export default function NianStorage(props) {
         .fade-in { animation: fadeIn 0.3s ease forwards; }
       `}</style>
 
-      <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+      <div style={{ display: "flex", height: "100vh", overflow: "hidden", position: "relative" }}>
+
+        {/* Mobile Overlay - close sidebar when clicking outside */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0, 0, 0, 0.5)",
+              zIndex: 99,
+              display: window.innerWidth > 768 ? "none" : "block"
+            }}
+          />
+        )}
 
         {/* Sidebar */}
-        <aside style={{ width: 220, background: "#D4DEC8", borderRight: "1px solid #B8C9A3", padding: "24px 14px", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
-          {/* Logo */}
-          <div style={{ padding: "4px 14px 20px" }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: "-0.5px", color: "#1C2416" }}>
-              nian<span style={{ color: "#E07A2F" }}>.</span>
+        <aside style={{ 
+          width: 220, 
+          background: "#D4DEC8", 
+          borderRight: "1px solid #B8C9A3", 
+          padding: "24px 14px", 
+          display: "flex", 
+          flexDirection: "column", 
+          gap: 8, 
+          flexShrink: 0,
+          position: window.innerWidth > 768 ? "relative" : "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          height: "100vh",
+          zIndex: 100,
+          transform: window.innerWidth > 768 ? "translateX(0)" : (sidebarOpen ? "translateX(0)" : "translateX(-100%)"),
+          transition: window.innerWidth > 768 ? "none" : "transform 0.3s ease",
+          overflowY: "auto"
+        }}>
+          {/* Logo + Close Button */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ padding: "4px 14px 0" }}>
+              <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: "-0.5px", color: "#1C2416" }}>
+                nian<span style={{ color: "#E07A2F" }}>.</span>
+              </div>
+              <div style={{ fontSize: 11, color: "#6B7D5A", marginTop: 2 }}>personal storage</div>
             </div>
-            <div style={{ fontSize: 11, color: "#6B7D5A", marginTop: 2 }}>personal storage</div>
+            {window.innerWidth <= 768 && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#1C2416",
+                  marginTop: -8
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 20, height: 20 }}>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
           </div>
 
-          <button className="sidebar-btn active">
+          <button 
+            className="sidebar-btn active"
+            onClick={() => window.innerWidth <= 768 && setSidebarOpen(false)}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" style={{width:18,height:18}}>
               <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
             Home
           </button>
-          <button className="sidebar-btn">
+          <button 
+            className="sidebar-btn"
+            onClick={() => window.innerWidth <= 768 && setSidebarOpen(false)}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{width:18,height:18}}>
               <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
             </svg>
             My Files
           </button>
-          <button className="sidebar-btn">
+          <button 
+            className="sidebar-btn"
+            onClick={() => window.innerWidth <= 768 && setSidebarOpen(false)}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{width:18,height:18}}>
               <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
             </svg>
             Photos
           </button>
-          <button className="sidebar-btn">
+          <button 
+            className="sidebar-btn"
+            onClick={() => window.innerWidth <= 768 && setSidebarOpen(false)}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{width:18,height:18}}>
               <rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3V10z"/>
             </svg>
             Videos
           </button>
-          <button className="sidebar-btn">
+          <button 
+            className="sidebar-btn"
+            onClick={() => window.innerWidth <= 768 && setSidebarOpen(false)}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{width:18,height:18}}>
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
             </svg>
@@ -908,10 +982,34 @@ export default function NianStorage(props) {
         </aside>
 
         {/* Main */}
-        <main style={{ flex: 1, overflow: "auto", padding: "28px 32px", display: "flex", flexDirection: "column" }}>
+        <main style={{ flex: 1, overflow: "auto", padding: "28px 32px", display: "flex", flexDirection: "column", width: "100%" }}>
 
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+          {/* Mobile Header with Hamburger */}
+          <div style={{ display: window.innerWidth > 768 ? "none" : "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#1C2416"
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 24, height: 24 }}>
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 20, color: "#1C2416", margin: 0 }}>My Storage</h1>
+          </div>
+
+          {/* Desktop Header */}
+          <div style={{ display: window.innerWidth > 768 ? "flex" : "none", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
             <div>
               <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: "-0.5px", color: "#1C2416" }}>My Storage</h1>
               <p style={{ fontSize: 13, color: "#6B7D5A", marginTop: 3 }}>
@@ -1078,7 +1176,23 @@ export default function NianStorage(props) {
           ) : view === "grid" ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
               {filtered.map((f, i) => (
-                <div key={f.id} className="file-card fade-in" style={{ animationDelay: `${i * 0.05}s`, position: 'relative' }}>
+                <div 
+                  key={f.id} 
+                  className="file-card fade-in" 
+                  style={{ 
+                    animationDelay: `${i * 0.05}s`, 
+                    position: 'relative',
+                    group: 'file-card'
+                  }}
+                  onMouseEnter={(e) => {
+                    const btn = e.currentTarget.querySelector('button[title="Delete file"]');
+                    if (btn) btn.style.opacity = '1';
+                  }}
+                  onMouseLeave={(e) => {
+                    const btn = e.currentTarget.querySelector('button[title="Delete file"]');
+                    if (btn) btn.style.opacity = '0';
+                  }}
+                >
                   <div 
                     onClick={() => handleDownload(f)}
                     style={{ cursor: 'pointer' }}
@@ -1113,11 +1227,12 @@ export default function NianStorage(props) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      opacity: 0.8,
-                      transition: 'opacity 0.2s'
+                      opacity: 0,
+                      transition: 'opacity 0.2s',
+                      width: 28,
+                      height: 28
                     }}
-                    onMouseEnter={(e) => e.target.style.opacity = '1'}
-                    onMouseLeave={(e) => e.target.style.opacity = '0.8'}
+                    title="Delete file"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:14,height:14}}>
                       <polyline points="3 6 5 6 21 6"/>
@@ -1130,7 +1245,30 @@ export default function NianStorage(props) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {filtered.map((f, i) => (
-                <div key={f.id} className="file-row fade-in" style={{ animationDelay: `${i * 0.04}s` }}>
+                <div 
+                  key={f.id} 
+                  className="file-row fade-in" 
+                  style={{ 
+                    animationDelay: `${i * 0.04}s`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: 12,
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#DDE8D2";
+                    const btn = e.currentTarget.querySelector('button[title="Delete file"]');
+                    if (btn) btn.style.opacity = '1';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    const btn = e.currentTarget.querySelector('button[title="Delete file"]');
+                    if (btn) btn.style.opacity = '0';
+                  }}
+                >
                   <div 
                     onClick={() => handleDownload(f)}
                     style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, cursor: 'pointer' }}
@@ -1151,8 +1289,22 @@ export default function NianStorage(props) {
                     <div style={{ fontSize: 12, color: "#6B7D5A", marginRight: 8 }}>{f.size}</div>
                   </div>
                   <button
-                    onClick={() => handleDelete(f.id, f.name)}
-                    style={{ background: "transparent", border: "none", color: "#DC2626", cursor: "pointer", padding: 8 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(f.id, f.name);
+                    }}
+                    style={{ 
+                      background: "transparent", 
+                      border: "none", 
+                      color: "#DC2626", 
+                      cursor: "pointer", 
+                      padding: 8,
+                      opacity: 0,
+                      transition: 'opacity 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
                     title="Delete file"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:16,height:16}}>

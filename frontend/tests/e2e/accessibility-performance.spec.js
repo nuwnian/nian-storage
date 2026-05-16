@@ -116,7 +116,7 @@ test.describe('Accessibility', () => {
     await page.keyboard.press('Tab');
     
     const focused = await page.evaluate(() => {
-      const el = document.activeElement as HTMLElement;
+      const el = document.activeElement;
       if (!el || el === document.body) return null;
       
       const rect = el.getBoundingClientRect();
@@ -282,10 +282,10 @@ test.describe('Performance', () => {
     
     // Get memory info if available
     const memoryInfo = await page.evaluate(() => {
-      if ((performance as any).memory) {
+      if (performance.memory) {
         return {
-          usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
-          jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit,
+          usedJSHeapSize: performance.memory.usedJSHeapSize,
+          jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
         };
       }
       return null;
