@@ -474,7 +474,7 @@ test.describe('File Operations', () => {
         await fileInput.setInputFiles(files);
         
         // Verify all files are selected
-        const fileCount = await fileInput.evaluate((el: HTMLInputElement) => el.files?.length || 0);
+        const fileCount = await fileInput.evaluate((el) => el.files?.length || 0);
         
         expect(fileCount).toBeGreaterThanOrEqual(1);
       }
