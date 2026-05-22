@@ -10,6 +10,56 @@ export default function NianLogin(props) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [approvalRequired, setApprovalRequired] = useState(false); // ✅ NEW: For pending approval state
+  const [confirmationSent, setConfirmationSent] = useState(false); // ✅ NEW: For email confirmation state
+
+  // ✅ NEW: Handle auto-login on page load if session exists
+  useEffect(() => {
+    const attemptAutoLogin = async () => {
+      try {
+        // Get stored session token (Supabase stores it in localStorage)
+        const storedSession = localStorage.getItem('sb-zozvtmmtqgrsdyautisy-auth-token');
+        
+        if (storedSession) {
+          const session = JSON.parse(storedSession);
+          const token = session?.access_token;
+
+          if (token) {
+            console.log('[AutoLogin] Found stored session, validating...');
+            
+            // Call /me to validate token and check approval
+            const response = await fetch(`${API_URL}/api/auth/me`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              console.log('[AutoLogin] ✅ Session valid, auto-logging in user:', data.user.email);
+              
+              // Track auto-login attempt
+              const autoLoginCount = parseInt(localStorage.getItem('oauth_auto_login_count') || '0');
+              localStorage.setItem('oauth_auto_login_count', (autoLoginCount + 1).toString());
+              
+              // Set user context and login
+              setUserContext({
+                id: data.user.id,
+                email: data.user.email,
+                username: data.user.name,
+              });
+              
+              props.onLogin(data.user, token);
+            } else {
+              console.log('[AutoLogin] Session invalid or expired');
+            }
+          }
+        }
+      } catch (err) {
+        console.log('[AutoLogin] No valid session found:', err.message);
+      }
+    };
+
+    attemptAutoLogin();
+  }, []);
 
   // Handle OAuth callback on mount
   useEffect(() => {
@@ -59,6 +109,9 @@ export default function NianLogin(props) {
             // Clear the hash from URL
             window.history.replaceState(null, '', window.location.pathname);
 
+            // ✅ NEW: Reset auto-login counter after manual selection
+            localStorage.setItem('oauth_auto_login_count', '0');
+
             // Set user context for Sentry error tracking
             setUserContext({
               id: data.user.id,
@@ -89,8 +142,17 @@ export default function NianLogin(props) {
   const handleOAuth = async (provider) => {
     setError('');
     try {
+      // ✅ NEW: Check if we should prompt for account selection (after 2 auto-logins)
+      const autoLoginCount = parseInt(localStorage.getItem('oauth_auto_login_count') || '0');
+      const promptAccountSelection = autoLoginCount >= 2;
+      
+      console.log(`[OAuth] Auto-login count: ${autoLoginCount}, Force account selection: ${promptAccountSelection}`);
+
       const data = await apiCallJson(`/api/auth/oauth/${provider}`, null, {
         method: 'POST',
+        headers: {
+          'X-Force-Account-Selection': promptAccountSelection ? 'true' : 'false'
+        }
       });
 
       if (data.url) {
@@ -117,20 +179,45 @@ export default function NianLogin(props) {
         ? { email, password }
         : { email, password, name };
 
-      const data = await apiCallJson(endpoint, null, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
-        body,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
 
-      // Set user context for Sentry error tracking
-      setUserContext({
-        id: data.user.id,
-        email: data.user.email,
-        username: data.user.name,
-      });
+      const data = await response.json();
 
-      // Call onLogin with user data and token
-      props.onLogin(data.user, data.session.access_token);
+      // ✅ NEW: Check if email confirmation is required
+      if (mode === 'register' && data.requiresEmailConfirmation) {
+        setConfirmationSent(true);
+        setLoading(false);
+        return;
+      }
+
+      // ✅ NEW: Check if account is pending approval
+      if (response.status === 403 && data.status === 'pending_approval') {
+        setApprovalRequired(true);
+        setLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Something went wrong');
+      }
+
+      // Only set user context and login if we have a session
+      if (data.session?.access_token) {
+        setUserContext({
+          id: data.user.id,
+          email: data.user.email,
+          username: data.user.name,
+        });
+
+        // Call onLogin with user data and token
+        props.onLogin(data.user, data.session.access_token);
+      } else {
+        throw new Error('No session available. Please check your email to confirm your account.');
+      }
     } catch (err) {
       captureError(err, { 
         operation: 'auth_submit',
@@ -353,86 +440,172 @@ export default function NianLogin(props) {
               </div>
             )}
 
-            {/* Fields */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {mode === "register" && (
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: "#2E3D22", display: "block", marginBottom: 8 }}>FULL NAME</label>
-                  <input className="input-field" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} />
-                </div>
-              )}
-
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "#2E3D22", display: "block", marginBottom: 8 }}>EMAIL</label>
-                <input className="input-field" type="email" placeholder="you@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+            {/* ✅ NEW: Pending Approval Screen */}
+            {approvalRequired && (
+              <div style={{ textAlign: "center", padding: "32px 24px", background: "#DDE8D2", borderRadius: 16, border: "1.5px solid #C4D4B0" }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+                <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 700, color: "#1C2416", marginBottom: 12 }}>
+                  Account Pending Review
+                </h3>
+                <p style={{ fontSize: 14, color: "#6B7D5A", marginBottom: 20, lineHeight: 1.6 }}>
+                  Thanks for signing up! Your account is being reviewed by our admin team.
+                </p>
+                <p style={{ fontSize: 13, color: "#8BA370", marginBottom: 24 }}>
+                  We'll send you an email once you're approved. This usually takes 24 hours.
+                </p>
+                <button 
+                  onClick={() => {
+                    setApprovalRequired(false);
+                    setEmail('');
+                    setPassword('');
+                    setMode('login');
+                  }}
+                  style={{
+                    padding: "12px 32px",
+                    background: "#2E3D22",
+                    color: "#E8EDE0",
+                    border: "none",
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = "#1C2416"}
+                  onMouseLeave={(e) => e.target.style.background = "#2E3D22"}
+                >
+                  Back to Login
+                </button>
               </div>
+            )}
 
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: "#2E3D22" }}>PASSWORD</label>
-                  {mode === "login" && <span style={{ fontSize: 13, color: "#4A7C3F", cursor: "pointer", fontWeight: 500 }}>Forgot password?</span>}
-                </div>
-                <div style={{ position: "relative" }}>
-                  <input className="input-field" type={showPass ? "text" : "password"} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 42 }} />
-                  <button className="show-pass" onClick={() => setShowPass(!showPass)}>
-                    {showPass ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    )}
+            {/* ✅ NEW: Email Confirmation Screen */}
+            {confirmationSent && (
+              <div style={{ textAlign: "center", padding: "32px 24px", background: "#DDE8D2", borderRadius: 16, border: "1.5px solid #C4D4B0" }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
+                <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 700, color: "#1C2416", marginBottom: 12 }}>
+                  Confirm Your Email
+                </h3>
+                <p style={{ fontSize: 14, color: "#6B7D5A", marginBottom: 20, lineHeight: 1.6 }}>
+                  We've sent a confirmation link to<br /><strong>{email}</strong>
+                </p>
+                <p style={{ fontSize: 13, color: "#8BA370", marginBottom: 24 }}>
+                  Click the link in your email to verify your account. Once confirmed, you can log in.
+                </p>
+                <button 
+                  onClick={() => {
+                    setConfirmationSent(false);
+                    setEmail('');
+                    setPassword('');
+                    setMode('login');
+                  }}
+                  style={{
+                    padding: "12px 32px",
+                    background: "#2E3D22",
+                    color: "#E8EDE0",
+                    border: "none",
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = "#1C2416"}
+                  onMouseLeave={(e) => e.target.style.background = "#2E3D22"}
+                >
+                  Back to Login
+                </button>
+              </div>
+            )}
+
+            {/* Show form only if not pending approval or confirmation */}
+            {!approvalRequired && !confirmationSent && (
+              <>
+                {/* Fields */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {mode === "register" && (
+                    <div>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#2E3D22", display: "block", marginBottom: 8 }}>FULL NAME</label>
+                      <input className="input-field" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} />
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: "#2E3D22", display: "block", marginBottom: 8 }}>EMAIL</label>
+                    <input className="input-field" type="email" placeholder="you@email.com" value={email} onChange={e => setEmail(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: "#2E3D22" }}>PASSWORD</label>
+                      {mode === "login" && <span style={{ fontSize: 13, color: "#4A7C3F", cursor: "pointer", fontWeight: 500 }}>Forgot password?</span>}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <input className="input-field" type={showPass ? "text" : "password"} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 42 }} />
+                      <button className="show-pass" onClick={() => setShowPass(!showPass)}>
+                        {showPass ? (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        ) : (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {mode === "register" && (
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <input type="checkbox" id="terms" style={{ marginTop: 2, accentColor: "#4A7C3F", width: 14, height: 14, cursor: "pointer" }} />
+                      <label htmlFor="terms" style={{ fontSize: 12, color: "#6B7D5A", lineHeight: 1.5, cursor: "pointer" }}>
+                        I agree to the <span style={{ color: "#4A7C3F", fontWeight: 500 }}>Terms of Service</span> and <span style={{ color: "#4A7C3F", fontWeight: 500 }}>Privacy Policy</span>
+                      </label>
+                    </div>
+                  )}
+
+                  <button className="submit-btn" onClick={handleSubmit} disabled={loading} type="submit" style={{ marginTop: 8 }}>
+                    {loading ? <span className="spinner" /> : mode === "login" ? "Sign In" : "Create Account"}
                   </button>
+
+                  {/* Divider */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0", color: "#8BA370", fontSize: 12 }}>
+                    <div style={{ flex: 1, height: 1, background: "#C4D4B0" }} />
+                    <span>or continue with</span>
+                    <div style={{ flex: 1, height: 1, background: "#C4D4B0" }} />
+                  </div>
+
+                  {/* OAuth Buttons */}
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <button
+                      className="social-btn"
+                      onClick={() => handleOAuth('google')}
+                      disabled={loading}
+                      style={{ flex: 1 }}
+                      title="Sign in with Google"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" style={{ display: "inline" }}>
+                        <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="14" fill="#4285F4" fontWeight="bold" transform="translate(-24, 0)">G</text>
+                        <circle cx="12" cy="12" r="11" fill="none" stroke="#DDD" strokeWidth="0.5"/>
+                      </svg>
+                      Google
+                    </button>
+                    {/* GitHub button is commented out */}
+                    {/* 
+                    <button
+                      className="social-btn"
+                      onClick={() => handleOAuth('github')}
+                      disabled={loading}
+                      style={{ flex: 1 }}
+                      title="Sign in with GitHub"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="#1C2416">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                      </svg>
+                      GitHub
+                    </button>
+                    */}
+                  </div>
                 </div>
-              </div>
-
-              {mode === "register" && (
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <input type="checkbox" id="terms" style={{ marginTop: 2, accentColor: "#4A7C3F", width: 14, height: 14, cursor: "pointer" }} />
-                  <label htmlFor="terms" style={{ fontSize: 12, color: "#6B7D5A", lineHeight: 1.5, cursor: "pointer" }}>
-                    I agree to the <span style={{ color: "#4A7C3F", fontWeight: 500 }}>Terms of Service</span> and <span style={{ color: "#4A7C3F", fontWeight: 500 }}>Privacy Policy</span>
-                  </label>
-                </div>
-              )}
-
-              <button className="submit-btn" onClick={handleSubmit} disabled={loading} style={{ marginTop: 8 }}>
-                {loading ? <span className="spinner" /> : mode === "login" ? "Sign In" : "Create Account"}
-              </button>
-
-              {/* Divider */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0", color: "#8BA370", fontSize: 12 }}>
-                <div style={{ flex: 1, height: 1, background: "#C4D4B0" }} />
-                <span>or continue with</span>
-                <div style={{ flex: 1, height: 1, background: "#C4D4B0" }} />
-              </div>
-
-              {/* OAuth Buttons */}
-              <div style={{ display: "flex", gap: 12 }}>
-                <button
-                  className="social-btn"
-                  onClick={() => handleOAuth('google')}
-                  disabled={loading}
-                  style={{ flex: 1 }}
-                  title="Sign in with Google"
-                >
-                  <svg viewBox="0 0 24 24" width="16" height="16" style={{ display: "inline" }}>
-                    <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="14" fill="#4285F4" fontWeight="bold" transform="translate(-24, 0)">G</text>
-                    <circle cx="12" cy="12" r="11" fill="none" stroke="#DDD" strokeWidth="0.5"/>
-                  </svg>
-                  Google
-                </button>
-                <button
-                  className="social-btn"
-                  onClick={() => handleOAuth('github')}
-                  disabled={loading}
-                  style={{ flex: 1 }}
-                  title="Sign in with GitHub"
-                >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="#1C2416">
-                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-                  </svg>
-                  GitHub
-                </button>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
 

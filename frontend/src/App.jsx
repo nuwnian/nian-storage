@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase, hasSupabaseConfig } from './config/supabase.js';
+import { API_URL } from './config/api.js';
 import NianLogin from './pages/NianLogin';
 import NianStorage from './pages/NianStorage';
+import NianAdmin from './pages/NianAdmin';
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -9,6 +11,7 @@ function App() {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessionRestored, setSessionRestored] = useState(false);
+  const [currentPage, setCurrentPage] = useState('storage'); // 'storage' or 'admin'
 
   // Listen for auth state changes (session restoration, login, logout)
   useEffect(() => {
@@ -56,9 +59,24 @@ function App() {
 
           if (session?.access_token) {
             console.log('[AUTH] ✅ Session restored from persistence or URL hash');
-            setUser(session.user);
             setToken(session.access_token);
             setLoggedIn(true);
+            
+            // Fetch full user profile from /me endpoint to get role
+            fetch(`${API_URL}/api/auth/me`, {
+              headers: { Authorization: `Bearer ${session.access_token}` }
+            })
+              .then(res => res.json())
+              .then(data => {
+                if (data.user) {
+                  setUser(data.user);
+                  console.log('[AUTH] ✅ Loaded user profile with role:', data.user.role);
+                }
+              })
+              .catch(err => {
+                console.error('[AUTH] Error fetching user profile:', err);
+                setUser(session.user);
+              });
           } else {
             console.log('[AUTH] ⚠️ No session found');
             setLoggedIn(false);
@@ -69,10 +87,26 @@ function App() {
           console.log('[AUTH] ✅ User signed in');
           isAuthStateHandled = true;
           clearTimeout(fallbackTimer);
-          setUser(session.user);
           setToken(session.access_token);
           setLoggedIn(true);
           setSessionRestored(true);
+          
+          // Fetch full user profile from /me endpoint to get role
+          fetch(`${API_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.user) {
+                setUser(data.user);
+                console.log('[AUTH] ✅ Loaded user profile with role:', data.user.role);
+              }
+            })
+            .catch(err => {
+              console.error('[AUTH] Error fetching user profile:', err);
+              setUser(session.user);
+            });
+          
           setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           console.log('[AUTH] ⚠️ User signed out');
@@ -146,7 +180,14 @@ function App() {
     );
   }
 
-  if (loggedIn) return <NianStorage user={user} token={token} onLogout={handleLogout} />;
+  if (loggedIn) {
+    // Show admin page if user is admin and currentPage is 'admin'
+    if (currentPage === 'admin' && user?.role === 'admin') {
+      return <NianAdmin user={user} token={token} onLogout={handleLogout} onBackToStorage={() => setCurrentPage('storage')} />;
+    }
+    
+    return <NianStorage user={user} token={token} onLogout={handleLogout} onGoToAdmin={() => setCurrentPage('admin')} />;
+  }
   return <NianLogin onLogin={handleLogin} />;
 }
 

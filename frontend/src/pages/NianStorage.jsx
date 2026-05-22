@@ -90,7 +90,7 @@ const icons = {
 };
 
 export default function NianStorage(props) {
-  const { user: initialUser, token, onLogout } = props;
+  const { user: initialUser, token, onLogout, onGoToAdmin } = props;
   const [user, setUser] = useState(initialUser);
   const [files, setFiles] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -948,9 +948,67 @@ export default function NianStorage(props) {
                 }}>
                   {user?.name || 'User'}
                 </div>
-                <div style={{ fontSize: 11, color: "#6B7D5A" }}>Free plan</div>
+                <div style={{ fontSize: 11, color: "#6B7D5A" }}>
+                  {user?.role === 'admin' ? '👑 Admin' : 'Free plan'}
+                </div>
               </div>
             </div>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => onGoToAdmin && onGoToAdmin()}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1.5px solid #FFE8CC",
+                  background: "#FFF5E6",
+                  color: "#E65100",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  fontFamily: "'DM Sans', sans-serif",
+                  width: "100%"
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "#FFE8CC";
+                  e.target.style.borderColor = "#FF9800";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "#FFF5E6";
+                  e.target.style.borderColor = "#FFE8CC";
+                }}
+              >
+                👑 Admin Panel
+              </button>
+            )}
+            <button
+              onClick={onLogout}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1.5px solid #B8C9A3",
+                background: "transparent",
+                color: "#6B7D5A",
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "'DM Sans', sans-serif",
+                marginBottom: 8
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#E6F5E6";
+                e.target.style.borderColor = "#7BA05B";
+                e.target.style.color = "#4A7C3F";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "transparent";
+                e.target.style.borderColor = "#B8C9A3";
+                e.target.style.color = "#6B7D5A";
+              }}
+            >
+              Use Another Account
+            </button>
             <button
               onClick={onLogout}
               style={{

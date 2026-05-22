@@ -16,6 +16,17 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add new permission columns (safely - won't fail if they exist)
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'pending';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS rejected BOOLEAN DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP WITH TIME ZONE;
+
+-- Add OAuth tracking columns
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS oauth_provider TEXT; -- 'google', 'github', etc
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS oauth_metadata JSONB; -- {avatar_url, provider_id, etc}
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE;
+
 -- Enable Row Level Security
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
@@ -23,15 +34,31 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.users;
+DROP POLICY IF EXISTS "Admins can update any profile" ON public.users;
 
 -- Create policies for users table
 CREATE POLICY "Users can view own profile"
   ON public.users FOR SELECT
   USING (auth.uid() = id);
 
+CREATE POLICY "Admins can view all profiles"
+  ON public.users FOR SELECT
+  USING (
+    (auth.uid() = id) OR 
+    (SELECT role FROM public.users WHERE id = auth.uid()) = 'admin'
+  );
+
 CREATE POLICY "Users can update own profile"
   ON public.users FOR UPDATE
   USING (auth.uid() = id);
+
+CREATE POLICY "Admins can update any profile"
+  ON public.users FOR UPDATE
+  USING (
+    (auth.uid() = id) OR 
+    (SELECT role FROM public.users WHERE id = auth.uid()) = 'admin'
+  );
 
 CREATE POLICY "Users can insert own profile"
   ON public.users FOR INSERT
@@ -87,6 +114,8 @@ CREATE POLICY "Users can delete own files"
 CREATE INDEX IF NOT EXISTS idx_files_user_id ON public.files(user_id);
 CREATE INDEX IF NOT EXISTS idx_files_type ON public.files(type);
 CREATE INDEX IF NOT EXISTS idx_files_created_at ON public.files(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_approved ON public.users(approved);
+CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
 
 -- =====================================================
 -- 4. CREATE TRIGGERS
