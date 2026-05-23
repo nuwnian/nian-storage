@@ -47,9 +47,7 @@ test.describe('Authentication', () => {
       await emailInput.fill('invalid-email');
       
       // Check for validation
-      const hasValidation = await emailInput.evaluate(el => 
-        el.validity?.valid === false || el.parentElement?.textContent?.includes('email')
-      );
+      const hasValidation = await emailInput.evaluate(el => el.validity?.valid === false || el.parentElement?.textContent?.includes('email'));
       expect(hasValidation).toBeTruthy();
     }
   });
@@ -98,9 +96,7 @@ test.describe('Authentication', () => {
       
       // Button should show loading state
       const isDisabled = await submitButton.isDisabled();
-      const hasLoadingClass = await submitButton.evaluate(el => 
-        el.classList.contains('loading') || el.textContent?.includes('Loading')
-      );
+      const hasLoadingClass = await submitButton.evaluate(el => el.classList.contains('loading') || el.textContent?.includes('Loading'));
       
       expect(isDisabled || hasLoadingClass).toBeTruthy();
     }

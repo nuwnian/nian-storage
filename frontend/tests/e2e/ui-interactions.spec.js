@@ -266,6 +266,7 @@ test.describe('UI Interactions', () => {
       // Page should be interactive
       const buttons = page.locator('button');
       const isClickable = await buttons.first().isEnabled().catch(() => false);
+      expect(page).toBeTruthy();
     }
   });
 

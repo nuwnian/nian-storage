@@ -30,6 +30,7 @@ test.describe('File Operations', () => {
     
     // Should have either files or empty state, or at least be able to navigate the page
     const mainContent = page.locator('main, [role="main"], body');
+    expect(hasFiles || hasEmptyState).toBeTruthy();
     await expect(mainContent).toBeVisible();
   });
 
