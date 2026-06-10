@@ -305,7 +305,7 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
     // Check storage limit (use admin to bypass RLS)
     let { data: userData, error: userError } = await supabaseAdmin
       .from('users')
-      .select('storage_used, storage_total')
+      .select('storage_used, storage_total, role')
       .eq('id', req.userId)
       .single();
 
@@ -335,6 +335,8 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
           id: req.userId,
           email: authUser.user.email,
           name: authUser.user.user_metadata?.name || authUser.user.email.split('@')[0],
+          role: authUser.user.user_metadata?.demo_mode ? 'demo' : 'pending',
+          approved: !!authUser.user.user_metadata?.demo_mode,
           storage_used: 0,
           storage_total: 10737418240, // 10 GB
         })
@@ -348,6 +350,22 @@ router.post('/', verifyUser, upload.single('file'), async (req, res) => {
 
       userData = newUserData;
       console.log('User record created:', userData.id);
+    }
+
+    if (userData?.role === 'demo') {
+      const { data: existingFiles, error: existingFilesError } = await supabaseAdmin
+        .from('files')
+        .select('id')
+        .eq('user_id', req.userId);
+
+      if (existingFilesError) {
+        console.error('[UPLOAD] ❌ Demo file count lookup failed:', existingFilesError);
+        return res.status(400).json({ error: 'Unable to check demo file limit' });
+      }
+
+      if ((existingFiles?.length || 0) >= 3) {
+        return res.status(400).json({ error: 'Demo mode allows up to 3 uploaded files. Delete one to upload another.' });
+      }
     }
 
     if (userData.storage_used + req.file.size > userData.storage_total) {

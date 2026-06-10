@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { setUserContext } from '../config/sentry.js';
 import { Resend } from 'resend';
+import crypto from 'crypto';
 
 const router = express.Router();
 let resend = null;
@@ -207,7 +208,102 @@ router.post('/register', async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, demoMode } = req.body;
+
+    const normalizedEmail = email?.trim().toLowerCase();
+
+    if (demoMode) {
+      if (!normalizedEmail) {
+        return res.status(400).json({ error: 'Email is required for demo mode' });
+      }
+
+      const profileName = normalizedEmail.split('@')[0] || 'demo';
+      const demoAuthEmail = process.env.DEMO_AUTH_EMAIL || 'demo@nian.local';
+      const demoPassword = crypto
+        .createHash('sha256')
+        .update(`nian-demo:${process.env.DEMO_AUTH_SECRET || 'demo-mode'}`)
+        .digest('hex')
+        .slice(0, 32);
+
+      let authResult = await supabase.auth.signInWithPassword({
+        email: demoAuthEmail,
+        password: demoPassword,
+      });
+
+      if (authResult.error || !authResult.data?.session) {
+        const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: demoAuthEmail,
+          password: demoPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: 'Demo User',
+            demo_mode: true,
+          },
+        });
+
+        if (createError && !/already.*registered|already.*exists/i.test(createError.message || '')) {
+          return res.status(400).json({ error: createError.message });
+        }
+
+        authResult = await supabase.auth.signInWithPassword({
+          email: demoAuthEmail,
+          password: demoPassword,
+        });
+      }
+
+      if (authResult.error || !authResult.data?.session || !authResult.data?.user) {
+        return res.status(401).json({ error: 'Demo login failed' });
+      }
+
+      const { data: userData, error: userError } = await supabaseAdmin
+        .from('users')
+        .upsert(
+          {
+            id: authResult.data.user.id,
+            email: normalizedEmail,
+            name: profileName,
+            role: 'demo',
+            approved: true,
+            storage_used: 0,
+            storage_total: 10737418240,
+            oauth_provider: 'demo',
+            oauth_metadata: {
+              demo_email: normalizedEmail,
+              demo_auth_email: demoAuthEmail,
+            },
+            last_login_at: new Date().toISOString(),
+          },
+          {
+            onConflict: 'id',
+            ignoreDuplicates: false,
+          }
+        )
+        .select()
+        .single();
+
+      if (userError) {
+        return res.status(400).json({ error: userError.message });
+      }
+
+      setUserContext({
+        id: userData.id,
+        email: userData.email,
+        username: userData.name,
+      });
+
+      return res.json({
+        message: 'Demo login successful',
+        user: {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          role: userData.role,
+          storage_used: userData.storage_used,
+          storage_total: userData.storage_total,
+        },
+        session: authResult.data.session,
+      });
+    }
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });

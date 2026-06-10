@@ -191,11 +191,26 @@ export default async function handler(req, res) {
 
       console.log('Getting user storage data...');
       const { data: userData, error: userError } = await supabaseAdmin
-        .from('users').select('storage_used, storage_total').eq('id', user.id).single();
+        .from('users').select('storage_used, storage_total, role').eq('id', user.id).single();
       
       if (userError) {
         console.log('ERROR getting user data:', userError);
         return res.status(500).json({ error: 'Failed to get user storage info' });
+      }
+
+      if (userData?.role === 'demo') {
+        const { data: existingFiles, error: existingFilesError } = await supabaseAdmin
+          .from('files').select('id').eq('user_id', user.id);
+
+        if (existingFilesError) {
+          console.log('ERROR getting demo file count:', existingFilesError);
+          return res.status(500).json({ error: 'Failed to check demo file limit' });
+        }
+
+        if ((existingFiles?.length || 0) >= 3) {
+          console.log('ERROR: Demo file limit reached');
+          return res.status(400).json({ error: 'Demo mode allows up to 3 uploaded files. Delete one to upload another.' });
+        }
       }
 
       if (userData && userData.storage_used + size > userData.storage_total) {

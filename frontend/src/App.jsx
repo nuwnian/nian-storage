@@ -2,8 +2,15 @@ import { useState, useEffect } from "react";
 import { supabase, hasSupabaseConfig } from './config/supabase.js';
 import { API_URL } from './config/api.js';
 import NianLogin from './pages/NianLogin';
+import DemoLogin from './pages/DemoLogin';
 import NianStorage from './pages/NianStorage';
 import NianAdmin from './pages/NianAdmin';
+
+const DEMO_SESSION_KEY = 'nian.demo.session';
+const queryParams = new URLSearchParams(window.location.search);
+
+const isDemoRoute = window.location.pathname.startsWith('/demo');
+const shouldUseDemoLogin = isDemoRoute || import.meta.env.DEV;
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -15,6 +22,26 @@ function App() {
 
   // Listen for auth state changes (session restoration, login, logout)
   useEffect(() => {
+    if (isDemoRoute) {
+      try {
+        const storedSession = localStorage.getItem(DEMO_SESSION_KEY);
+        if (storedSession) {
+          const demoSession = JSON.parse(storedSession);
+          if (demoSession?.token && demoSession?.user) {
+            setUser(demoSession.user);
+            setToken(demoSession.token);
+            setLoggedIn(true);
+          }
+        }
+      } catch (error) {
+        console.error('[DEMO] Failed to restore demo session:', error);
+      }
+
+      setSessionRestored(true);
+      setLoading(false);
+      return () => {};
+    }
+
     console.log('[AUTH] Setting up auth state listener');
     let fallbackTimer;
     let isAuthStateHandled = false;
@@ -141,6 +168,10 @@ function App() {
     setUser(userData);
     setToken(accessToken);
     setLoggedIn(true);
+
+    if (isDemoRoute || userData?.role === 'demo') {
+      localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify({ user: userData, token: accessToken }));
+    }
   };
 
   const handleLogout = () => {
@@ -148,6 +179,12 @@ function App() {
     setUser(null);
     setToken(null);
     setLoggedIn(false);
+
+    if (isDemoRoute || user?.role === 'demo') {
+      localStorage.removeItem(DEMO_SESSION_KEY);
+      return;
+    }
+
     supabase.auth.signOut();
   };
 
@@ -188,6 +225,10 @@ function App() {
     
     return <NianStorage user={user} token={token} onLogout={handleLogout} onGoToAdmin={() => setCurrentPage('admin')} />;
   }
+  if (shouldUseDemoLogin) {
+    return <DemoLogin onLogin={handleLogin} />;
+  }
+
   return <NianLogin onLogin={handleLogin} />;
 }
 
