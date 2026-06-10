@@ -1,15 +1,15 @@
-# Nian Storage 🌿
+# Nian Storage 
 
 A full-stack personal cloud storage application with a beautiful green aesthetic and smooth user experience.
 
-## ✨ Features
+##Features
 
 - **Clean UI** - Modern interface with calming green color palette
 - **Authentication** - Secure login and registration with Supabase Auth
 - **File Management** - Upload, organize, filter, and search files
 - **Responsive Design** - Works seamlessly on all devices
 
-## 🏗️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -19,7 +19,7 @@ A full-stack personal cloud storage application with a beautiful green aesthetic
 | **File Storage** | Cloudflare R2 |
 | **Authentication** | Supabase Auth |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js v18+
@@ -58,7 +58,7 @@ npm run build
 npm start
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ├── frontend/
@@ -78,7 +78,7 @@ npm start
 └── api/                            # Vercel serverless API
 ```
 
-## 🔌 API Endpoints
+## API Endpoints
 
 ### Auth
 - `POST /api/auth/register` - Register new user
@@ -92,13 +92,13 @@ npm start
 - `POST /api/files/upload` - Upload file
 - `DELETE /api/files/:id` - Delete file
 
-## 💾 Storage Architecture
+## Storage Architecture
 
 - **Metadata**: Stored in Supabase PostgreSQL (filename, type, size, upload date)
 - **File Data**: Stored in Cloudflare R2 for reliable, scalable object storage
 - **Access**: Files are proxied through `/api/files/:id/serve` endpoint for secure access
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Backend unit tests (Jest)
@@ -112,7 +112,7 @@ npm run test:ui --prefix frontend
 npm run test:debug --prefix frontend
 ```
 
-## 🎨 Design System
+## Design System
 
 **Colors:**
 - Background: `#E8EDE0`
@@ -124,11 +124,11 @@ npm run test:debug --prefix frontend
 - Headings: Syne
 - Body: DM Sans
 
-## 📝 License
+## License
 
 MIT - Feel free to use for learning or personal projects.
 
-## 🔗 Additional Resources
+## Additional Resources
 
 - [Supabase Setup Guide](SUPABASE_SETUP.md)
 - [Testing Guide](backend/TESTING.md)
