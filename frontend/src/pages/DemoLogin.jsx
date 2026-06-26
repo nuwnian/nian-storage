@@ -3,25 +3,11 @@ import { setUserContext, captureError } from "../config/sentry.js";
 import { API_URL } from "../config/api.js";
 
 export default function DemoLogin(props) {
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('nian.demo.email');
-    if (savedEmail) {
-      setEmail(savedEmail);
-    }
-  }, []);
-
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (!normalizedEmail) {
-      setError('Enter an email address');
-      return;
-    }
 
     setLoading(true);
     setError("");
@@ -30,7 +16,7 @@ export default function DemoLogin(props) {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail, demoMode: true }),
+        body: JSON.stringify({ demoMode: true }),
       });
 
       const data = await response.json();
@@ -43,7 +29,6 @@ export default function DemoLogin(props) {
         throw new Error('No demo session was created');
       }
 
-      localStorage.setItem('nian.demo.email', normalizedEmail);
       setUserContext({
         id: data.user.id,
         email: data.user.email,
@@ -55,7 +40,6 @@ export default function DemoLogin(props) {
     } catch (err) {
       captureError(err, {
         operation: 'demo_login',
-        email: normalizedEmail,
       });
       setError(err.message || 'Something went wrong');
     } finally {
@@ -68,22 +52,6 @@ export default function DemoLogin(props) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
         * { box-sizing: border-box; }
-        .demo-input {
-          width: 100%;
-          padding: 14px 16px;
-          border-radius: 12px;
-          border: 1.5px solid #C4D4B0;
-          background: #DDE8D2;
-          color: #1C2416;
-          font-size: 14px;
-          outline: none;
-          transition: 0.2s ease;
-        }
-        .demo-input:focus {
-          border-color: #4A7C3F;
-          box-shadow: 0 0 0 3px rgba(74,124,63,0.12);
-          background: #E4EDD9;
-        }
         .demo-button {
           width: 100%;
           padding: 14px 16px;
@@ -148,9 +116,9 @@ export default function DemoLogin(props) {
         <div className="demo-card">
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 14, color: '#8BA370', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Demo session</div>
-            <h2 style={{ margin: '10px 0 8px', fontFamily: "'Syne', sans-serif", fontSize: 30, letterSpacing: '-0.04em' }}>Launch the demo</h2>
+            <h2 style={{ margin: '10px 0 8px', fontFamily: "'Syne', sans-serif", fontSize: 30, letterSpacing: '-0.04em' }}>Shared Demo</h2>
             <p style={{ margin: 0, color: '#6B7D5A', lineHeight: 1.7 }}>
-              Type any dummy email and continue. No real user info is needed, and the address is used only for display in demo mode.
+              Click below to access the shared demo environment. You'll join a clean, pre-configured account to explore Nian Storage.
             </p>
             
           </div>
@@ -162,20 +130,8 @@ export default function DemoLogin(props) {
           )}
 
           <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 14 }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 700, color: '#2E3D22' }}>EMAIL</label>
-              <input
-                className="demo-input"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-              />
-            </div>
-
-            <button className="demo-button" type="submit" disabled={loading || !email.trim()}>
-              {loading ? 'Signing in...' : 'Continue'}
+            <button className="demo-button" type="submit" disabled={loading}>
+              {loading ? 'Entering Demo...' : 'Enter Demo Account'}
             </button>
           </form>
         </div>

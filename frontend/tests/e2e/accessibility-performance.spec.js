@@ -15,12 +15,13 @@ test.describe('Accessibility', () => {
     const h1Count = await page.locator('h1').count();
     
     // Should have at least one h1 or equivalent
-    const hasMainHeading = h1Count >= 0; // May use other semantic elements
+    const hasMainHeading = h1Count > 0; // May use other semantic elements
+    expect(hasMainHeading).toBeTruthy();
     
     // Verify no skipped heading levels (h1 -> h3 would be bad)
     const headings = await page.locator('h1, h2, h3, h4, h5, h6').all();
     
-    expect(headings.length).toBeGreaterThanOrEqual(0);
+    expect(headings.length).toBeGreaterThan(0);
   });
 
   test('should have descriptive link text', async ({ page }) => {
@@ -105,7 +106,7 @@ test.describe('Accessibility', () => {
     
     // At least some inputs should have proper labels
     // Allow for partially labeled forms
-    expect(labeledCount >= 0).toBeTruthy();
+    expect(labeledCount).toBeGreaterThan(0);
   });
 
   test('should have proper color contrast', async ({ page }) => {
@@ -113,7 +114,7 @@ test.describe('Accessibility', () => {
     const textElements = await page.locator('p, a, button, span').all();
     
     // Should have readable contrast (verified by visual inspection in real testing)
-    expect(textElements.length).toBeGreaterThanOrEqual(0);
+    expect(textElements.length).toBeGreaterThan(0);
   });
 
   test('should support keyboard-only navigation', async ({ page }) => {
@@ -126,7 +127,7 @@ test.describe('Accessibility', () => {
     const links = await page.locator('a[href]').count();
     const focusableCount = buttons + inputs + links;
     
-    expect(focusableCount).toBeGreaterThanOrEqual(0);
+    expect(focusableCount).toBeGreaterThan(0);
     
     // Try tabbing
     for (let i = 0; i < 5; i++) {
@@ -143,6 +144,7 @@ test.describe('Accessibility', () => {
     }
     
     // Should be able to reach at least some elements
+    expect(focusableElements).toBeGreaterThan(0);
   });
 
   test('should have focus indicators visible', async ({ page }) => {
@@ -175,7 +177,7 @@ test.describe('Accessibility', () => {
     const alerts = await page.locator('[role="alert"]').count();
     
     // Should use semantic HTML or proper ARIA roles
-    expect(buttons + menuItems + alerts).toBeGreaterThanOrEqual(0);
+    expect(buttons + menuItems + alerts).toBeGreaterThan(0);
   });
 
   test('should announce dynamic content changes', async ({ page }) => {
@@ -186,6 +188,8 @@ test.describe('Accessibility', () => {
     const statusArea = await page.locator('[role="status"], [aria-live="polite"]').isVisible().catch(() => false);
     
     // Should have live regions for updates
+    // Only require this if the app is expected to have dynamic screen-reader alerts
+    // expect(liveRegions > 0 || statusArea).toBeTruthy();
   });
 
   test('should handle zoom levels (browser zoom)', async ({ page }) => {
@@ -200,8 +204,8 @@ test.describe('Accessibility', () => {
     });
     
     // Should still be readable
-    const mainContent = page.locator('main, [role="main"]');
-    const isVisible = await mainContent.isVisible().catch(() => false);
+    const mainContent = page.locator('main, [role="main"], h1, body').first();
+    await expect(mainContent).toBeVisible();
     
     // Reset
     await page.evaluate(() => {
@@ -276,6 +280,7 @@ test.describe('Accessibility', () => {
     });
     
     // Should minimize color-only content
+    expect(colorOnlyElements).toBeLessThan(10); // arbitrary acceptable threshold
   });
 });
 

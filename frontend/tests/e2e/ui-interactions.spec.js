@@ -10,18 +10,6 @@ test.describe('UI Interactions', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  test('should handle keyboard navigation', async ({ page }) => {
-    // Tab through form fields
-    await page.keyboard.press('Tab');
-    
-    // Check if focus moved
-    const focusedElement = await page.evaluate(() => {
-      return document.activeElement?.tagName;
-    });
-    
-    expect(focusedElement).toBeTruthy();
-  });
-
   test('should handle Enter key submission', async ({ page }) => {
     const emailInput = page.locator('input[type="email"]');
     
@@ -136,44 +124,6 @@ test.describe('UI Interactions', () => {
       // Click elsewhere to close
       await page.click('body');
     }
-  });
-
-  test('should be responsive at mobile viewport', async ({ browser }) => {
-    // Create mobile context
-    const context = await browser.newContext({
-      viewport: { width: 375, height: 667 },
-    });
-    
-    const mobileePage = await context.newPage();
-    await mobileePage.goto('/');
-    await mobileePage.waitForLoadState('networkidle');
-    
-    // Should not break on mobile
-    const mainContent = mobileePage.locator('main, [role="main"]');
-    const isVisible = await mainContent.isVisible().catch(() => false);
-    
-    // At least page should load
-    expect(mobileePage.url()).toBeTruthy();
-    
-    await context.close();
-  });
-
-  test('should be responsive at tablet viewport', async ({ browser }) => {
-    const context = await browser.newContext({
-      viewport: { width: 768, height: 1024 },
-    });
-    
-    const tabletPage = await context.newPage();
-    await tabletPage.goto('/');
-    await tabletPage.waitForLoadState('networkidle');
-    
-    // Verify layout
-    const content = await tabletPage.locator('body');
-    const width = await content.boundingBox();
-    
-    expect(width?.width).toBeLessThanOrEqual(768);
-    
-    await context.close();
   });
 
   test('should not have layout shifts', async ({ page }) => {

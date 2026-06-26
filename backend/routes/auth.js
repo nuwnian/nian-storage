@@ -142,6 +142,8 @@ router.post('/register', async (req, res) => {
           name,
           storage_used: 0,
           storage_total: 10737418240, // 10 GB in bytes
+          approved: true, // Bypassing approval system
+          role: 'user',   // Default to normal user
         },
         { 
           onConflict: 'id',
@@ -210,14 +212,7 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password, demoMode } = req.body;
 
-    const normalizedEmail = email?.trim().toLowerCase();
-
     if (demoMode) {
-      if (!normalizedEmail) {
-        return res.status(400).json({ error: 'Email is required for demo mode' });
-      }
-
-      const profileName = normalizedEmail.split('@')[0] || 'demo';
       const demoAuthEmail = process.env.DEMO_AUTH_EMAIL || 'demo@nian.local';
       const demoPassword = crypto
         .createHash('sha256')
@@ -236,7 +231,7 @@ router.post('/login', async (req, res) => {
           password: demoPassword,
           email_confirm: true,
           user_metadata: {
-            full_name: 'Demo User',
+            full_name: 'Shared Demo',
             demo_mode: true,
           },
         });
@@ -255,34 +250,36 @@ router.post('/login', async (req, res) => {
         return res.status(401).json({ error: 'Demo login failed' });
       }
 
-      const { data: userData, error: userError } = await supabaseAdmin
+      let { data: userData, error: userError } = await supabaseAdmin
         .from('users')
-        .upsert(
-          {
+        .select('*')
+        .eq('id', authResult.data.user.id)
+        .single();
+
+      if (!userData) {
+        const { data: newUser, error: insertError } = await supabaseAdmin
+          .from('users')
+          .insert({
             id: authResult.data.user.id,
-            email: normalizedEmail,
-            name: profileName,
+            email: demoAuthEmail,
+            name: 'Shared Demo',
             role: 'demo',
             approved: true,
             storage_used: 0,
             storage_total: 10737418240,
             oauth_provider: 'demo',
-            oauth_metadata: {
-              demo_email: normalizedEmail,
-              demo_auth_email: demoAuthEmail,
-            },
             last_login_at: new Date().toISOString(),
-          },
-          {
-            onConflict: 'id',
-            ignoreDuplicates: false,
-          }
-        )
-        .select()
-        .single();
-
-      if (userError) {
-        return res.status(400).json({ error: userError.message });
+          })
+          .select()
+          .single();
+          
+        if (insertError) return res.status(400).json({ error: insertError.message });
+        userData = newUser;
+      } else {
+        await supabaseAdmin
+          .from('users')
+          .update({ last_login_at: new Date().toISOString() })
+          .eq('id', userData.id);
       }
 
       setUserContext({
@@ -331,13 +328,14 @@ router.post('/login', async (req, res) => {
     }
 
     // ✅ NEW: Check if user is approved
-    if (!userData.approved) {
-      return res.status(403).json({ 
-        error: 'Your account is pending approval',
-        status: 'pending_approval',
-        message: 'An admin will review your account shortly. You\'ll receive an email once approved.'
-      });
-    }
+    // Bypassing approval system: Commenting out the check
+    // if (!userData.approved) {
+    //   return res.status(403).json({ 
+    //     error: 'Your account is pending approval',
+    //     status: 'pending_approval',
+    //     message: 'An admin will review your account shortly. You\'ll receive an email once approved.'
+    //   });
+    // }
 
     // Set user context for error tracking
     setUserContext({
@@ -394,9 +392,9 @@ router.get('/me', async (req, res) => {
         .insert({
           id: user.id,
           email: user.email,
-          name: user.user_metadata?.full_name || user.email?.split('@')[0],
-          role: 'pending',
-          approved: false,
+          name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
+          role: 'user',   // changed from 'pending'
+          approved: true, // changed from false
           storage_used: 0,
           storage_total: 10737418240, // 10 GB
         })
@@ -414,17 +412,18 @@ router.get('/me', async (req, res) => {
     }
 
     // ✅ NEW: Check approval status
-    if (!userData.approved) {
-      return res.status(403).json({
-        error: 'Account pending approval',
-        status: 'pending_approval',
-        user: {
-          id: userData.id,
-          email: userData.email,
-          name: userData.name,
-        }
-      });
-    }
+    // Bypassing approval system: Commenting out the check
+    // if (!userData.approved) {
+    //   return res.status(403).json({
+    //     error: 'Account pending approval',
+    //     status: 'pending_approval',
+    //     user: {
+    //       id: userData.id,
+    //       email: userData.email,
+    //       name: userData.name,
+    //     }
+    //   });
+    // }
 
     // Set user context for error tracking
     setUserContext({
@@ -474,9 +473,11 @@ router.post('/oauth/callback', async (req, res) => {
         {
           id: user.id,
           email: user.email,
-          name: user.user_metadata?.full_name || user.email?.split('@')[0],
+          name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
           storage_used: 0,
           storage_total: 10737418240, // 10 GB
+          approved: true, // Auto-approve OAuth users
+          role: 'user',   // Set default role to user
           oauth_provider: user.app_metadata?.provider || 'unknown',
           oauth_metadata: {
             avatar_url: user.user_metadata?.avatar_url,

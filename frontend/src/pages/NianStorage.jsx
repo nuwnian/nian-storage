@@ -108,32 +108,6 @@ export default function NianStorage(props) {
   const [txtContent, setTxtContent] = useState(null);
   const fileInputRef = useRef(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const accountMenuRef = useRef(null);
-  const isDemoUser = user?.role === 'demo';
-  const demoFileLimitReached = isDemoUser && files.length >= 3;
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
-        setAccountMenuOpen(false);
-      }
-    };
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setAccountMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, []);
 
   // Fetch files on mount - wait for token to be available
   useEffect(() => {
@@ -456,25 +430,12 @@ export default function NianStorage(props) {
       setError('You must be logged in to upload files');
       return;
     }
-
-    const incomingFiles = Array.from(fileList);
-    const remainingSlots = isDemoUser ? Math.max(0, 3 - files.length) : incomingFiles.length;
-
-    if (isDemoUser && remainingSlots === 0) {
-      setError('Demo mode allows up to 3 uploaded files. Delete one to upload another.');
-      return;
-    }
-
-    const filesToUpload = isDemoUser ? incomingFiles.slice(0, remainingSlots) : incomingFiles;
-    const demoUploadWarning = isDemoUser && incomingFiles.length > filesToUpload.length
-      ? 'Demo mode allows up to 3 uploaded files. Extra selected files were skipped.'
-      : '';
-
+    
     setUploadProgress({ uploading: true, progress: 0, fileName: '' });
-    setError(demoUploadWarning);
+    setError("");
 
-    for (let i = 0; i < filesToUpload.length; i++) {
-      let file = filesToUpload[i];
+    for (let i = 0; i < fileList.length; i++) {
+      let file = fileList[i];
       
       // Compress images before upload
       if (file.type.startsWith('image/')) {
@@ -953,8 +914,7 @@ export default function NianStorage(props) {
           </div>
 
           {/* Avatar */}
-          <div ref={accountMenuRef} style={{ 
-            position: "relative",
+          <div style={{ 
             display: "flex", 
             flexDirection: "column", 
             gap: 8,
@@ -989,85 +949,10 @@ export default function NianStorage(props) {
                   {user?.name || 'User'}
                 </div>
                 <div style={{ fontSize: 11, color: "#6B7D5A" }}>
-                  {user?.role === 'admin' ? '👑 Admin' : isDemoUser ? 'Demo plan · 3-file limit' : 'Free plan'}
+                  {user?.role === 'admin' ? '👑 Admin' : 'Free plan'}
                 </div>
               </div>
-              <button
-                type="button"
-                aria-label="Open account menu"
-                aria-expanded={accountMenuOpen}
-                onClick={() => setAccountMenuOpen((open) => !open)}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 999,
-                  border: "1px solid #C4D4B0",
-                  background: accountMenuOpen ? "#E6F0DA" : "#F7FAF2",
-                  color: "#4A7C3F",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  transition: "all 0.2s"
-                }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, transform: accountMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
             </div>
-            {accountMenuOpen && (
-              <div style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 0,
-                marginTop: 4,
-                paddingTop: 6,
-                borderTop: "1px solid #D7E1CA"
-              }}>
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  style={{
-                    width: "100%",
-                    padding: "7px 8px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: "transparent",
-                    color: "#4A7C3F",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    textAlign: "left",
-                    cursor: "pointer",
-                    fontFamily: "'DM Sans', sans-serif",
-                    lineHeight: 1.1
-                  }}
-                >
-                  Use Another Account
-                </button>
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  style={{
-                    width: "100%",
-                    padding: "7px 8px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: "transparent",
-                    color: "#B91C1C",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    textAlign: "left",
-                    cursor: "pointer",
-                    fontFamily: "'DM Sans', sans-serif",
-                    lineHeight: 1.1
-                  }}
-                >
-                  Sign Out
-                </button>
-              </div>
-            )}
             {user?.role === 'admin' && (
               <button
                 onClick={() => onGoToAdmin && onGoToAdmin()}
@@ -1096,6 +981,61 @@ export default function NianStorage(props) {
                 👑 Admin Panel
               </button>
             )}
+            <button
+              onClick={onLogout}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1.5px solid #B8C9A3",
+                background: "transparent",
+                color: "#6B7D5A",
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "'DM Sans', sans-serif",
+                marginBottom: 8
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#E6F5E6";
+                e.target.style.borderColor = "#7BA05B";
+                e.target.style.color = "#4A7C3F";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "transparent";
+                e.target.style.borderColor = "#B8C9A3";
+                e.target.style.color = "#6B7D5A";
+              }}
+            >
+              Use Another Account
+            </button>
+            <button
+              onClick={onLogout}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1.5px solid #C4D4B0",
+                background: "transparent",
+                color: "#6B7D5A",
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "'DM Sans', sans-serif"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#FEE2E2";
+                e.target.style.borderColor = "#FCA5A5";
+                e.target.style.color = "#991B1B";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "transparent";
+                e.target.style.borderColor = "#C4D4B0";
+                e.target.style.color = "#6B7D5A";
+              }}
+            >
+              Sign Out
+            </button>
           </div>
         </aside>
 
@@ -1182,10 +1122,10 @@ export default function NianStorage(props) {
               e.preventDefault();
               e.stopPropagation();
               setDragging(false);
-              if (token && !demoFileLimitReached) handleFileUpload(e.dataTransfer.files);
+              if (token) handleFileUpload(e.dataTransfer.files);
             }}
-            onClick={() => token && !demoFileLimitReached && fileInputRef.current?.click()}
-            style={{ marginBottom: 28, opacity: token ? (demoFileLimitReached ? 0.7 : 1) : 0.5, pointerEvents: token ? 'auto' : 'none' }}
+            onClick={() => token && fileInputRef.current?.click()}
+            style={{ marginBottom: 28, opacity: token ? 1 : 0.5, pointerEvents: token ? 'auto' : 'none' }}
           >
             {!token && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1238,19 +1178,8 @@ export default function NianStorage(props) {
             ) : (
               <>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>☁️</div>
-                {token && demoFileLimitReached ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: '#B91C1B' }}>Demo limit reached</div>
-                    <div style={{ fontSize: 13, color: '#991B1B', fontWeight: 600, lineHeight: 1.5, maxWidth: 300 }}>
-                      Delete one of your existing files to upload another. Demo mode caps uploads at three files.
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>Drop files here to upload</div>
-                    <div style={{ fontSize: 13, color: "#6B7D5A" }}>or <span style={{ color: "#4A7C3F", cursor: "pointer" }}>browse files</span> from your device</div>
-                  </>
-                )}
+                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>Drop files here to upload</div>
+                <div style={{ fontSize: 13, color: "#6B7D5A" }}>or <span style={{ color: "#4A7C3F", cursor: "pointer" }}>browse files</span> from your device</div>
               </>
             )}
           </div>

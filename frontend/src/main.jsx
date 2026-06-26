@@ -4,7 +4,9 @@ import App from './App.jsx'
 
 // Initialize Sentry FIRST (before rendering React)
 import { initSentry } from './config/sentry.js'
-initSentry()
+if (import.meta.env.VITE_DISABLE_SENTRY !== 'true') {
+  initSentry()
+}
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
