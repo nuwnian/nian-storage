@@ -3,6 +3,9 @@
     "private": true,
     "version": "1.0.0",
     "type": "module",
+    "overrides": {
+        "esbuild": "^0.25.0"
+    },
     "scripts": {
         "dev": "vite",
         "dev:wait": "wait-on http://localhost:5000 && vite",

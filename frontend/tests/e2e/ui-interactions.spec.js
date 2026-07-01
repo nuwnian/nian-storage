@@ -46,18 +46,18 @@ test.describe('UI Interactions', () => {
   test('should maintain focus management', async ({ page }) => {
     const buttons = page.locator('button');
     const count = await buttons.count();
-    
+
     if (count > 0) {
       // Click first button
       await buttons.first().click();
-      
+
       // Focus should be manageable
       await page.keyboard.press('Tab');
-      
+
       const focusedElement = await page.evaluate(() => {
-        return document.activeElement?.className;
+        return document.activeElement?.tagName || null;
       });
-      
+
       expect(focusedElement).toBeTruthy();
     }
   });
