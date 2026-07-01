@@ -8,21 +8,23 @@ test.describe('File Operations', () => {
     // Handle demo login if shown
     const demoLoginBtn = page.getByRole('button', { name: /Enter Demo Account|Login as Demo/i });
     if (await demoLoginBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const loginResponse = page.waitForResponse(res => res.url().includes('/api/auth/login') && res.status() === 200);
       await demoLoginBtn.click();
+      await loginResponse;
       await page.waitForLoadState('networkidle');
     }
 
-    // Wait for dashboard content to render (not just networkidle)
-    await expect(page.locator('main, [role="main"]')).toBeVisible({ timeout: 10000 });
+    // Wait for a stable dashboard marker after login completes
+    await expect(page.locator('input[type="file"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('should load storage page structure', async ({ page }) => {
     // Wait for main content to load
-    const mainContent = page.locator('main, [role="main"], .storage-container');
-    const isVisible = await mainContent.isVisible().catch(() => false);
+    const dashboardMarker = page.locator('input[type="file"]');
+    const isVisible = await dashboardMarker.isVisible().catch(() => false);
     
     if (isVisible) {
-      await expect(mainContent).toBeVisible();
+      await expect(dashboardMarker).toBeVisible();
     }
   });
 
@@ -34,6 +36,7 @@ test.describe('File Operations', () => {
   test('should toggle between grid and list view', async ({ page }) => {
     // Wait for content to load
     await page.waitForLoadState('networkidle');
+    await expect(page.locator('input[type="file"]')).toBeVisible({ timeout: 10000 });
     
     // Look for view toggle buttons by searching all buttons
     const allButtons = page.locator('button');
@@ -55,9 +58,8 @@ test.describe('File Operations', () => {
       }
     }
     
-    // View toggle is optional - just verify page loaded
-    const mainContent = page.locator('main, [role="main"], .storage-container').first();
-    await expect(mainContent).toBeVisible();
+    // Verify the dashboard remains visible after the toggle interaction
+    await expect(page.locator('input[type="file"]')).toBeVisible();
   });
 
   test('should filter files by type (images, videos, documents)', async ({ page }) => {
@@ -82,8 +84,7 @@ test.describe('File Operations', () => {
     }
     
     // Just verify page is still functional
-    const mainContent = page.locator('main, [role="main"]').first();
-    await expect(mainContent).toBeVisible();
+    await expect(page.locator('input[type="file"]')).toBeVisible();
   });
 
   test('should search and filter files by name', async ({ page }) => {
