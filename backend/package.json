@@ -4,6 +4,9 @@
   "description": "Backend API for Nian Storage application",
   "type": "module",
   "main": "server.js",
+  "overrides": {
+    "js-yaml": "^4.1.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
