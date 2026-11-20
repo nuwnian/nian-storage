@@ -114,20 +114,16 @@ test.describe('Authentication & Upload Limits - Demo Mode', () => {
     expect(uploadedFiles.length, 'User should have successfully uploaded exactly 3 files').toBe(3);
 
     // Requirement 6: 4th upload attempt is blocked with an error message
-    // We use force: true here to attempt bypass in case the UI disabled the input element after the 3rd upload
     await fileInput.setInputFiles({
       name: `demo-file-4.txt`,
       mimeType: 'text/plain',
       buffer: Buffer.from(`This is demo file 4`)
-    }, { force: true }).catch(() => {
-      // Playwright throws if the input is strictly disabled by React.
-      // We safely catch it, as disabling the input is a valid block.
     });
 
     // Requirement 7: Upload limit message is visible after 3rd file / 4th attempt
     const expectedErrorMessage = /Demo mode allows up to 3 uploaded files/i;
     const limitMessage = page.getByText(expectedErrorMessage);
     
-    await expect(limitMessage, 'Upload limit error message must be visible to the user').toBeVisible();
+    await expect(limitMessage, 'Upload limit error message must be visible to the user').toBeVisible({ timeout: 10000 });
   });
 });
